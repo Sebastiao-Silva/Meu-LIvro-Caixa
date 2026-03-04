@@ -4,143 +4,163 @@ import os
 from datetime import datetime
 import urllib.parse
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA ---
-# O parâmetro 'initial_sidebar_state' garante que o menu lateral seja acessível
+# --- 1. CONFIGURAÇÃO COM IDENTIDADE ---
 st.set_page_config(
-    page_title="Bear Snack Pro", 
+    page_title="Bear Snack - Gestão", 
     layout="centered", 
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# --- 2. ESTILIZAÇÃO CSS CUSTOMIZADA ---
+# --- 2. CSS TEMÁTICO "URSO" ---
 st.markdown("""
     <style>
-    .stApp { background-color: #FDFBF9; }
+    /* Fundo da Tela */
+    .stApp { background-color: #FDF5E6; } 
+    
+    /* Cabeçalho e Sidebar */
+    [data-testid="stSidebar"] { background-color: #4E3620 !important; }
+    [data-testid="stSidebar"] * { color: #D2B48C !important; }
+    
+    /* Card de Saldo (Vermelho Chapéu + Marrom) */
     .balance-card {
-        background: linear-gradient(135deg, #4E3620, #B03020);
+        background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
         color: white;
-        padding: 25px;
-        border-radius: 20px;
+        padding: 30px;
+        border-radius: 25px;
         text-align: center;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        margin-bottom: 20px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        border: 2px solid #D2B48C;
     }
+
+    /* Botões Bear Snack (Marrom com texto Bege) */
     .stButton > button {
         width: 100%;
-        height: 55px !important;
-        border-radius: 12px !important;
+        height: 60px !important;
+        border-radius: 15px !important;
+        background-color: #4E3620 !important;
+        color: #D2B48C !important;
         font-weight: bold !important;
-        font-size: 16px !important;
+        font-size: 18px !important;
+        border: 2px solid #D2B48C !important;
     }
-    /* Estilo para os cards de histórico */
-    .hist-card {
+    
+    /* Botão de WhatsApp (Verde mas arredondado) */
+    .btn-wa {
+        background-color: #25D366;
+        color: white;
+        padding: 15px;
+        border-radius: 15px;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+
+    /* Cards de Histórico (Bege com borda Marrom) */
+    .item-card {
         background: white;
         padding: 15px;
-        border-radius: 12px;
-        margin-bottom: 10px;
-        border-left: 5px solid #CD853F;
+        border-radius: 15px;
+        margin-bottom: 12px;
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        border-left: 8px solid #CD853F;
     }
+    .item-card b { color: #4E3620; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. LÓGICA DE DADOS (PERSISTÊNCIA) ---
-DB_VENDAS = "vendas_bear.csv"
-DB_CLIENTES = "clientes_bear.csv"
+# --- 3. BANCO DE DADOS ---
+DB_VENDAS = "vendas_bear_final.csv"
+DB_CLIENTES = "clientes_bear_final.csv"
 
-def carregar_banco():
+def load():
     c = pd.read_csv(DB_CLIENTES) if os.path.exists(DB_CLIENTES) else pd.DataFrame(columns=['Nome', 'Telefone'])
     v = pd.read_csv(DB_VENDAS) if os.path.exists(DB_VENDAS) else pd.DataFrame(columns=['ID', 'Cliente', 'Item', 'Valor', 'Data', 'Tipo'])
     return c, v
 
-df_c, df_v = carregar_banco()
+df_c, df_v = load()
 
-# --- 4. BARRA LATERAL (SIDEBAR) ---
-# Usando o método sidebar para organizar o cadastro
+# --- 4. LOGO E MENU LATERAL ---
 with st.sidebar:
-    st.header("🐻 Bear Snack")
-    st.subheader("Painel de Controle")
+    if os.path.exists("logo.png"):
+        st.image("logo.png")
+    else:
+        st.title("🐻 BEAR SNACK")
     
-    with st.expander("👤 Cadastrar Novo Cliente", expanded=False):
-        nome_novo = st.text_input("Nome do Cliente")
-        tel_novo = st.text_input("WhatsApp (DDD+Número)")
-        if st.button("Salvar Cadastro"):
-            if nome_novo:
-                novo_df = pd.concat([df_c, pd.DataFrame([{'Nome': nome_novo, 'Telefone': tel_novo}])], ignore_index=True)
-                novo_df.to_csv(DB_CLIENTES, index=False)
-                st.success("Cliente cadastrado!")
-                st.rerun()
-    
-    st.divider()
-    st.caption("Versão Final Mobile v2.0")
+    st.write("### 👤 Novo Cliente")
+    n = st.text_input("Nome")
+    t = st.text_input("WhatsApp")
+    if st.button("CADASTRAR"):
+        if n:
+            new_c = pd.concat([df_c, pd.DataFrame([{'Nome': n, 'Telefone': t}])], ignore_index=True)
+            new_c.to_csv(DB_CLIENTES, index=False)
+            st.rerun()
 
-# --- 5. TELA PRINCIPAL (MAIN) ---
-st.markdown("<h2 style='text-align: center; color: #4E3620;'>Livro de Fiados</h2>", unsafe_allow_html=True)
+# --- 5. TELA PRINCIPAL ---
+st.markdown("<h1 style='text-align:center; color:#4E3620;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
 
 if df_c.empty:
-    st.warning("Toque na seta (>) no topo esquerdo para cadastrar seu primeiro cliente!")
+    st.info("Toque no menu (seta >) para cadastrar clientes.")
 else:
-    # Seleção de Cliente (selectbox)
-    cliente_ativo = st.selectbox("Selecione o Cliente:", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
+    cliente = st.selectbox("Quem é o cliente?", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
 
-    if cliente_ativo != "-- Selecionar --":
-        # Filtragem de dados do cliente selecionado
-        dados_v = df_v[df_v['Cliente'] == cliente_ativo]
-        total_compra = dados_v[dados_v['Tipo'] == 'Compra']['Valor'].sum()
-        total_pago = dados_v[dados_v['Tipo'] == 'Pagamento']['Valor'].sum()
-        saldo_atual = total_compra - total_pago
-        tel_cliente = df_c[df_c['Nome'] == cliente_ativo]['Telefone'].values[0]
+    if cliente != "-- Selecionar --":
+        # Dados do Cliente
+        v_c = df_v[df_v['Cliente'] == cliente]
+        divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
+        tel = df_c[df_c['Nome'] == cliente]['Telefone'].values[0]
 
-        # Resumo de Saldo
+        # Saldo Visual
         st.markdown(f"""
-            <div class='balance-card'>
-                <p style='margin:0; opacity:0.8;'>Saldo Devedor de {cliente_ativo}</p>
-                <h1 style='margin:0; color:white;'>R$ {saldo_atual:,.2f}</h1>
+            <div class="balance-card">
+                <p style="margin:0; opacity:0.8;">Dívida Ativa</p>
+                <h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1>
+                <p style="margin:0; font-weight:bold;">{cliente}</p>
             </div>
         """, unsafe_allow_html=True)
 
-        # Botões de Lançamento Rápido
+        # Botões de Toque (Mobile Ready)
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("➕ COMPRA"): st.session_state.tipo = "Compra"
+            if st.button("➕ COMPRA"): st.session_state.op = "Compra"
         with col2:
-            if st.button("💵 PAGOU"): st.session_state.tipo = "Pagamento"
+            if st.button("💵 PAGOU"): st.session_state.op = "Pagamento"
 
-        # Formulário de Inserção
-        if 'tipo' in st.session_state:
-            with st.form("lancamento_venda", clear_on_submit=True):
-                st.write(f"### Registrar {st.session_state.tipo}")
-                valor_f = st.number_input("Valor (R$)", min_value=0.0, step=1.0)
-                item_f = st.text_input("Descrição do Item")
+        # Formulário Dinâmico
+        if 'op' in st.session_state:
+            with st.form("form_lanca", clear_on_submit=True):
+                st.write(f"### Lançar {st.session_state.op}")
+                v_form = st.number_input("Valor R$", min_value=0.0, step=1.0)
+                i_form = st.text_input("Descrição")
                 if st.form_submit_button("SALVAR REGISTRO"):
-                    novo_id = datetime.now().strftime("%H%M%S%f")
-                    nova_linha = pd.DataFrame([{
-                        'ID': novo_id, 'Cliente': cliente_ativo, 'Item': item_f, 
-                        'Valor': valor_f, 'Data': datetime.now().strftime("%d/%m"), 'Tipo': st.session_state.tipo
-                    }])
-                    pd.concat([df_v, nova_linha], ignore_index=True).to_csv(DB_VENDAS, index=False)
-                    del st.session_state.tipo
+                    nid = datetime.now().strftime("%f")
+                    new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente, 'Item': i_form, 'Valor': v_form, 'Data': datetime.now().strftime("%d/%m"), 'Tipo': st.session_state.op}])
+                    pd.concat([df_v, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
+                    del st.session_state.op
                     st.rerun()
 
-        # Botão de Cobrança WhatsApp
-        texto_wa = f"Olá {cliente_ativo}, seu saldo no Bear Snack é de R$ {saldo_atual:,.2f}."
-        link_wa = f"https://wa.me/{tel_cliente}?text={urllib.parse.quote(texto_wa)}"
-        st.markdown(f'<a href="{link_wa}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:15px; border-radius:12px; font-weight:bold; cursor:pointer;">📲 Cobrar no WhatsApp</button></a>', unsafe_allow_html=True)
+        # WhatsApp estilizado
+        msg = f"Olá {cliente}, seu saldo no Bear Snack é de R$ {divida:,.2f}."
+        wa_url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
+        st.markdown(f'<a href="{wa_url}" target="_blank" class="btn-wa">📲 COBRAR NO WHATSAPP</a>', unsafe_allow_html=True)
 
-        # Histórico Detalhado em Cards
-        st.write("### Extrato Recente")
-        for i, row in dados_v.iloc[::-1].iterrows():
-            cor_valor = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
+        # Histórico em Cards Bear
+        st.write("---")
+        st.write("### Histórico de Pedidos")
+        for i, row in v_c.iloc[::-1].iterrows():
+            cor_v = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
             st.markdown(f"""
-                <div class="hist-card">
+                <div class="item-card">
                     <div><b>{row['Item'] if row['Item'] else row['Tipo']}</b><br><small>{row['Data']}</small></div>
-                    <div style="color:{cor_valor}; font-weight:bold;">R$ {row['Valor']:,.2f}</div>
+                    <div style="color:{cor_v}; font-weight:bold; font-size:18px;">R$ {row['Valor']:,.2f}</div>
                 </div>
             """, unsafe_allow_html=True)
-            
-            # Botão de Excluir Registro Individual
-            if st.button("🗑️ Apagar", key=f"del_{row['ID']}"):
+            if st.button("Apagar", key=f"del_{row['ID']}"):
                 df_v = df_v[df_v['ID'] != row['ID']]
                 df_v.to_csv(DB_VENDAS, index=False)
                 st.rerun()
