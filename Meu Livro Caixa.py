@@ -41,7 +41,7 @@ with st.sidebar:
             st.rerun()
 
 # --- TELA PRINCIPAL ---
-st.title("📲 Meu Livro de Vendas")
+st.title("📲 Bear Snack")
 
 if df_c.empty:
     st.info("Cadastre um cliente na barra lateral para começar.")
@@ -105,3 +105,4 @@ else:
                         df_v = df_v[df_v['ID'] != row['ID']]
                         df_v.to_csv(DB_VENDAS, index=False)
                         st.rerun()
+
