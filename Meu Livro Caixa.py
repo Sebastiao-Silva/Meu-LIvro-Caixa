@@ -2,94 +2,131 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
-import plotly.express as px
 
-# --- CONFIGURAÇÕES E ESTILO ---
-st.set_page_config(page_title="Livro Caixa Pro", layout="wide")
+# --- CONFIGURAÇÃO VISUAL NATIVA ---
+st.set_page_config(page_title="Livro Caixa", layout="centered")
 
-# CSS Avançado para esconder menus do Streamlit e parecer App Nativo
+# CSS para clonar o visual do App da Play Store
 st.markdown("""
     <style>
-    .stApp { background-color: #f0f2f5; }
-    [data-testid="stMetricValue"] { font-size: 24px; }
-    .main-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .entrada-txt { color: #2e7d32; font-weight: bold; }
-    .saida-txt { color: #d32f2f; font-weight: bold; }
+    /* Fundo cinza claro padrão de app */
+    .stApp { background-color: #F0F2F5; }
+    
+    /* Cabeçalho Azul do Livro Caixa */
+    .header-caixa {
+        background-color: #1976D2;
+        color: white;
+        padding: 25px;
+        border-radius: 0 0 20px 20px;
+        text-align: center;
+        margin: -60px -20px 20px -20px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Cards de Transação */
+    .card {
+        background: white;
+        padding: 12px 18px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left: 5px solid #DDD;
+    }
+    .card-entrada { border-left: 5px solid #4CAF50; }
+    .card-saida { border-left: 5px solid #F44336; }
+    
+    .valor-entrada { color: #4CAF50; font-weight: bold; font-size: 1.1em; }
+    .valor-saida { color: #F44336; font-weight: bold; font-size: 1.1em; }
+    
+    /* Botões Flutuantes/Grandes */
+    .stButton>button {
+        border-radius: 10px;
+        height: 3em;
+        font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÕES DE DADOS (BANCO DE DADOS) ---
-DB_FILE = "dados_caixa.csv"
-
-def carregar_dados():
-    if os.path.exists(DB_FILE):
-        return pd.read_csv(DB_FILE)
-    return pd.DataFrame(columns=['ID', 'Data', 'Descricao', 'Categoria', 'Valor', 'Tipo'])
-
-def salvar_dados(df):
-    df.to_csv(DB_FILE, index=False)
-
-# Inicialização
+# --- LÓGICA DE DADOS ---
+DB_FILE = "caixa_storage.csv"
 if 'df' not in st.session_state:
-    st.session_state.df = carregar_dados()
+    if os.path.exists(DB_FILE):
+        st.session_state.df = pd.read_csv(DB_FILE)
+    else:
+        st.session_state.df = pd.DataFrame(columns=['Data', 'Desc', 'Valor', 'Tipo'])
 
-# --- NAVEGAÇÃO POR ABAS (COMO NO APP) ---
-aba1, aba2, aba3 = st.tabs(["📊 Resumo", "📝 Lançamentos", "📑 Relatório Detalhado"])
+def salvar(df):
+    df.to_csv(DB_FILE, index=False)
+    st.session_state.df = df
 
-# --- ABA 1: RESUMO E GRÁFICOS ---
-with aba1:
-    df = st.session_state.df
-    total_in = df[df['Tipo'] == 'Entrada']['Valor'].sum()
-    total_out = df[df['Tipo'] == 'Saída']['Valor'].sum()
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Entradas", f"R$ {total_in:,.2f}")
-    col2.metric("Total Saídas", f"R$ {total_out:,.2f}")
-    col3.metric("Saldo em Caixa", f"R$ {(total_in - total_out):,.2f}")
+# --- INTERFACE ---
+df = st.session_state.df
+total_in = df[df['Tipo'] == 'Entrada']['Valor'].sum()
+total_out = df[df['Tipo'] == 'Saída']['Valor'].sum()
+saldo = total_in - total_out
 
-    if not df.empty:
-        st.subheader("Fluxo de Caixa")
-        fig = px.pie(df, values='Valor', names='Tipo', color='Tipo',
-                     color_discrete_map={'Entrada':'#4CAF50', 'Saída':'#F44336'}, hole=.4)
-        st.plotly_chart(fig, use_container_width=True)
+# 1. Topo Azul (Saldo)
+st.markdown(f"""
+    <div class="header-caixa">
+        <p style="margin:0; font-size: 0.9em; opacity: 0.9;">Saldo Atual</p>
+        <h1 style="margin:0; font-size: 2.2em;">R$ {saldo:,.2f}</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
-# --- ABA 2: NOVO LANÇAMENTO ---
-with aba2:
-    st.subheader("Novo Registro")
-    with st.container():
-        col_a, col_b = st.columns(2)
-        with col_a:
-            tipo = st.radio("Tipo de Movimentação", ["Entrada", "Saída"], horizontal=True)
-            valor = st.number_input("Valor (R$)", min_value=0.01, step=0.50)
-        with col_b:
-            data = st.date_input("Data do Evento", datetime.now())
-            cat = st.selectbox("Categoria", ["Venda", "Serviço", "Aluguel", "Salário", "Fornecedor", "Impostos", "Outros"])
-        
-        desc = st.text_area("Descrição / Detalhes")
-        
-        if st.button("💾 SALVAR NO LIVRO CAIXA", use_container_width=True):
-            novo_id = len(st.session_state.df) + 1
-            novo_dado = pd.DataFrame([[novo_id, data.strftime("%Y-%m-%d"), desc, cat, valor, tipo]], 
-                                     columns=['ID', 'Data', 'Descricao', 'Categoria', 'Valor', 'Tipo'])
-            st.session_state.df = pd.concat([st.session_state.df, novo_dado], ignore_index=True)
-            salvar_dados(st.session_state.df)
-            st.success("Lançamento salvo com sucesso!")
+# 2. Botões de Ação Rápida (Entrada/Saída)
+col1, col2 = st.columns(2)
+with col1:
+    btn_in = st.button("➕ ENTRADA", use_container_width=True)
+with col2:
+    btn_out = st.button("➖ SAÍDA", use_container_width=True)
+
+# Lógica dos formulários (aparecem ao clicar nos botões)
+if btn_in or st.session_state.get('show_in'):
+    st.session_state.show_in = True
+    with st.form("form_in", clear_on_submit=True):
+        st.subheader("Registrar Entrada")
+        v = st.number_input("Valor", min_value=0.01)
+        d = st.text_input("Descrição")
+        if st.form_submit_button("Confirmar"):
+            novo = pd.DataFrame([{'Data': datetime.now().strftime("%d/%m/%y"), 'Desc': d, 'Valor': v, 'Tipo': 'Entrada'}])
+            salvar(pd.concat([df, novo], ignore_index=True))
+            st.session_state.show_in = False
             st.rerun()
 
-# --- ABA 3: HISTÓRICO E EXCLUSÃO ---
-with aba3:
-    st.subheader("Histórico de Movimentações")
-    # Filtro rápido
-    busca = st.text_input("Buscar por descrição...")
-    df_filtrado = st.session_state.df
-    if busca:
-        df_filtrado = df_filtrado[df_filtrado['Descricao'].str.contains(busca, case=False)]
-    
-    st.dataframe(df_filtrado.sort_values(by="Data", ascending=False), use_container_width=True)
-    
-    if st.checkbox("Preciso apagar um erro"):
-        id_del = st.number_input("Digite o ID do registro para excluir", min_value=1)
-        if st.button("Confirmar Exclusão"):
-            st.session_state.df = st.session_state.df[st.session_state.df.ID != id_del]
-            salvar_dados(st.session_state.df)
+if btn_out or st.session_state.get('show_out'):
+    st.session_state.show_out = True
+    with st.form("form_out", clear_on_submit=True):
+        st.subheader("Registrar Saída")
+        v = st.number_input("Valor", min_value=0.01)
+        d = st.text_input("Descrição")
+        if st.form_submit_button("Confirmar"):
+            novo = pd.DataFrame([{'Data': datetime.now().strftime("%d/%m/%y"), 'Desc': d, 'Valor': v, 'Tipo': 'Saída'}])
+            salvar(pd.concat([df, novo], ignore_index=True))
+            st.session_state.show_out = False
             st.rerun()
+
+st.write("### Movimentações Recentes")
+
+# 3. Lista Estilizada (Cards)
+if df.empty:
+    st.info("Nenhum lançamento hoje.")
+else:
+    # Mostra os últimos 20 lançamentos
+    for i, row in df.iloc[::-1].head(20).iterrows():
+        classe_card = "card-entrada" if row['Tipo'] == "Entrada" else "card-saida"
+        classe_valor = "valor-entrada" if row['Tipo'] == "Entrada" else "valor-saida"
+        simbolo = "+" if row['Tipo'] == "Entrada" else "-"
+        
+        st.markdown(f"""
+            <div class="card {classe_card}">
+                <div>
+                    <span style="color: #888; font-size: 0.8em;">{row['Data']}</span><br>
+                    <span style="font-weight: 500;">{row['Desc']}</span>
+                </div>
+                <div class="{classe_valor}">
+                    {simbolo} R$ {row['Valor']:,.2f}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
