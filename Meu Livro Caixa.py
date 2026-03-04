@@ -3,130 +3,106 @@ import pandas as pd
 import os
 from datetime import datetime
 
-# --- CONFIGURAÇÃO VISUAL NATIVA ---
-st.set_page_config(page_title="Livro Caixa", layout="centered")
+# --- CONFIGURAÇÃO VISUAL ---
+st.set_page_config(page_title="Gestão de Vendas", layout="centered")
 
-# CSS para clonar o visual do App da Play Store
 st.markdown("""
     <style>
-    /* Fundo cinza claro padrão de app */
-    .stApp { background-color: #F0F2F5; }
-    
-    /* Cabeçalho Azul do Livro Caixa */
-    .header-caixa {
-        background-color: #1976D2;
-        color: white;
-        padding: 25px;
-        border-radius: 0 0 20px 20px;
-        text-align: center;
-        margin: -60px -20px 20px -20px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    
-    /* Cards de Transação */
-    .card {
-        background: white;
-        padding: 12px 18px;
-        border-radius: 12px;
-        margin-bottom: 8px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-left: 5px solid #DDD;
-    }
-    .card-entrada { border-left: 5px solid #4CAF50; }
-    .card-saida { border-left: 5px solid #F44336; }
-    
-    .valor-entrada { color: #4CAF50; font-weight: bold; font-size: 1.1em; }
-    .valor-saida { color: #F44336; font-weight: bold; font-size: 1.1em; }
-    
-    /* Botões Flutuantes/Grandes */
-    .stButton>button {
-        border-radius: 10px;
-        height: 3em;
-        font-weight: bold;
-    }
+    .stApp { background-color: #f8f9fa; }
+    .header-azul { background: #075E54; color: white; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
+    .card-cliente { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 5px solid #075E54; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- LÓGICA DE DADOS ---
-DB_FILE = "caixa_storage.csv"
-if 'df' not in st.session_state:
-    if os.path.exists(DB_FILE):
-        st.session_state.df = pd.read_csv(DB_FILE)
-    else:
-        st.session_state.df = pd.DataFrame(columns=['Data', 'Desc', 'Valor', 'Tipo'])
+# --- BANCO DE DADOS ---
+DB_CLIENTES = "clientes.csv"
+DB_VENDAS = "vendas.csv"
 
-def salvar(df):
-    df.to_csv(DB_FILE, index=False)
-    st.session_state.df = df
+def carregar_dados():
+    c = pd.read_csv(DB_CLIENTES) if os.path.exists(DB_CLIENTES) else pd.DataFrame(columns=['Nome', 'Telefone'])
+    v = pd.read_csv(DB_VENDAS) if os.path.exists(DB_VENDAS) else pd.DataFrame(columns=['Cliente', 'Produto', 'Valor', 'Data', 'Tipo'])
+    return c, v
+
+df_clientes, df_vendas = carregar_dados()
 
 # --- INTERFACE ---
-df = st.session_state.df
-total_in = df[df['Tipo'] == 'Entrada']['Valor'].sum()
-total_out = df[df['Tipo'] == 'Saída']['Valor'].sum()
-saldo = total_in - total_out
+st.markdown('<div class="header-azul"><h1>Sistema de Cobrança</h1></div>', unsafe_allow_html=True)
 
-# 1. Topo Azul (Saldo)
-st.markdown(f"""
-    <div class="header-caixa">
-        <p style="margin:0; font-size: 0.9em; opacity: 0.9;">Saldo Atual</p>
-        <h1 style="margin:0; font-size: 2.2em;">R$ {saldo:,.2f}</h1>
-    </div>
-    """, unsafe_allow_html=True)
+aba_clientes, aba_novo_lancamento = st.tabs(["👥 Meus Clientes", "➕ Novo Lançamento"])
 
-# 2. Botões de Ação Rápida (Entrada/Saída)
-col1, col2 = st.columns(2)
-with col1:
-    btn_in = st.button("➕ ENTRADA", use_container_width=True)
-with col2:
-    btn_out = st.button("➖ SAÍDA", use_container_width=True)
+# --- ABA 1: LISTA DE CLIENTES E SALDOS ---
+with aba_clientes:
+    st.subheader("Resumo de Dívidas")
+    if df_clientes.empty:
+        st.info("Nenhum cliente cadastrado.")
+    else:
+        for nome in df_clientes['Nome'].unique():
+            # Calcular quanto esse cliente deve
+            vendas_c = df_vendas[df_vendas['Cliente'] == nome]
+            total_devido = vendas_c[vendas_c['Tipo'] == 'Compra']['Valor'].sum()
+            total_pago = vendas_c[vendas_c['Tipo'] == 'Pagamento']['Valor'].sum()
+            saldo_devedor = total_devido - total_pago
+            
+            with st.container():
+                st.markdown(f"""
+                <div class="card-cliente">
+                    <div style="display: flex; justify-content: space-between;">
+                        <b>{nome}</b>
+                        <span style="color: {'red' if saldo_devedor > 0 else 'green'};">
+                            Dívida: R$ {saldo_devedor:,.2f}
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"Ver Detalhes de {nome}", key=nome):
+                    st.session_state.detalhe_cliente = nome
 
-# Lógica dos formulários (aparecem ao clicar nos botões)
-if btn_in or st.session_state.get('show_in'):
-    st.session_state.show_in = True
-    with st.form("form_in", clear_on_submit=True):
-        st.subheader("Registrar Entrada")
-        v = st.number_input("Valor", min_value=0.01)
-        d = st.text_input("Descrição")
-        if st.form_submit_button("Confirmar"):
-            novo = pd.DataFrame([{'Data': datetime.now().strftime("%d/%m/%y"), 'Desc': d, 'Valor': v, 'Tipo': 'Entrada'}])
-            salvar(pd.concat([df, novo], ignore_index=True))
-            st.session_state.show_in = False
+    # Se clicar no detalhe, mostra o histórico
+    if 'detalhe_cliente' in st.session_state:
+        st.divider()
+        st.write(f"### Histórico: {st.session_state.detalhe_cliente}")
+        historico = df_vendas[df_vendas['Cliente'] == st.session_state.detalhe_cliente]
+        st.table(historico[['Data', 'Produto', 'Valor', 'Tipo']])
+        if st.button("Fechar Detalhes"):
+            del st.session_state.detalhe_cliente
             st.rerun()
 
-if btn_out or st.session_state.get('show_out'):
-    st.session_state.show_out = True
-    with st.form("form_out", clear_on_submit=True):
-        st.subheader("Registrar Saída")
-        v = st.number_input("Valor", min_value=0.01)
-        d = st.text_input("Descrição")
-        if st.form_submit_button("Confirmar"):
-            novo = pd.DataFrame([{'Data': datetime.now().strftime("%d/%m/%y"), 'Desc': d, 'Valor': v, 'Tipo': 'Saída'}])
-            salvar(pd.concat([df, novo], ignore_index=True))
-            st.session_state.show_out = False
-            st.rerun()
+# --- ABA 2: NOVO LANÇAMENTO (TELA QUE VOCÊ PEDIU) ---
+with aba_novo_lancamento:
+    col_cad, col_lan = st.columns(2)
+    
+    with col_cad:
+        st.subheader("Cadastrar Novo Cliente")
+        novo_n = st.text_input("Nome do Cliente")
+        if st.button("Salvar Cliente"):
+            if novo_n:
+                novo_c = pd.DataFrame([{'Nome': novo_n}])
+                pd.concat([df_clientes, novo_c], ignore_index=True).to_csv(DB_CLIENTES, index=False)
+                st.success("Cadastrado!")
+                st.rerun()
 
-st.write("### Movimentações Recentes")
-
-# 3. Lista Estilizada (Cards)
-if df.empty:
-    st.info("Nenhum lançamento hoje.")
-else:
-    # Mostra os últimos 20 lançamentos
-    for i, row in df.iloc[::-1].head(20).iterrows():
-        classe_card = "card-entrada" if row['Tipo'] == "Entrada" else "card-saida"
-        classe_valor = "valor-entrada" if row['Tipo'] == "Entrada" else "valor-saida"
-        simbolo = "+" if row['Tipo'] == "Entrada" else "-"
-        
-        st.markdown(f"""
-            <div class="card {classe_card}">
-                <div>
-                    <span style="color: #888; font-size: 0.8em;">{row['Data']}</span><br>
-                    <span style="font-weight: 500;">{row['Desc']}</span>
-                </div>
-                <div class="{classe_valor}">
-                    {simbolo} R$ {row['Valor']:,.2f}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+    st.divider()
+    
+    st.subheader("Inserir Dados de Venda/Pagamento")
+    if not df_clientes.empty:
+        with st.form("form_venda", clear_on_submit=True):
+            # CAIXA DE SELEÇÃO DO CLIENTE (O que você pediu!)
+            cliente_sel = st.selectbox("Selecione o Cliente", df_clientes['Nome'].unique())
+            tipo_mov = st.selectbox("O que ele fez?", ["Compra", "Pagamento"])
+            item = st.text_input("O que ele comprou? (ou Descrição do pagamento)")
+            valor = st.number_input("Valor R$", min_value=0.01)
+            data_v = st.date_input("Data", datetime.now())
+            
+            if st.form_submit_button("Registrar no Livro"):
+                nova_v = pd.DataFrame([{
+                    'Cliente': cliente_sel, 
+                    'Produto': item, 
+                    'Valor': valor, 
+                    'Data': data_v.strftime("%d/%m/%Y"),
+                    'Tipo': tipo_mov
+                }])
+                pd.concat([df_vendas, nova_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
+                st.success(f"Registrado para {cliente_sel}!")
+                st.rerun()
+    else:
+        st.warning("Cadastre um cliente primeiro para fazer lançamentos.")
