@@ -3,211 +3,173 @@ import pandas as pd
 import os
 from datetime import datetime
 import urllib.parse
-from PIL import Image
 
-# --- CONFIGURAÇÃO VISUAL TEMÁTICA (Cores de Urso) ---
-st.set_page_config(page_title="BEAR SNACK - Gestão", layout="centered")
+# --- CONFIGURAÇÃO DE UI MOBILE ---
+st.set_page_config(page_title="Bear Snack", layout="centered")
 
-# Paleta de Cores do Urso
-C_URS_BASE = "#D2B48C"    # Marrom Tan (Pele base)
-C_URS_MED = "#CD853F"     # Marrom Peru (Focinho/Detalhes)
-C_URS_TEXTO = "#4E3620"   # Marrom Escuro (Letras e Contorno)
-C_URS_CHAPE = "#B03020"   # Vermelho Tijolo (Chapéu do logo)
-C_URS_TEXT_LOGO = "#EEDD88"# Amarelo Dourado (Fundo da letra SNACK)
-
-# Injeção de CSS Avançado para Customização de Interface
+# CSS para transformar o site em um App de Celular
 st.markdown(f"""
     <style>
-    /* Estilo de Fundo do App (Marrom Tan Claríssimo) */
-    .stApp {{ background-color: #F8F5F1; }}
+    /* Esconder menus do Streamlit para parecer App Nativo */
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
     
-    /* Título e Texto Geral */
-    h1, h2, h3, h4, .stText, p {{ color: {C_URS_TEXTO} !important; font-family: 'Poppins', sans-serif; }}
-    
-    /* Sidebar (Menu de Configurações) */
-    [data-testid="stSidebar"] {{
-        background-color: {C_URS_MED} !important;
+    /* Container Principal Estreito */
+    .block-container {{
+        padding-top: 1rem;
+        max-width: 450px;
     }}
-    [data-testid="stSidebar"] h2 {{ color: white !important; }}
-    [data-testid="stSidebar"] label {{ color: white !important; font-weight: bold; }}
-    
-    /* Botões Principais (Temáticos de Marrom Escuro) */
-    .stButton>button {{
-        background-color: {C_URS_TEXTO} !important;
-        color: white !important;
-        border-radius: 20px;
-        border: 2px solid #EEE;
-        font-weight: bold;
-        transition: 0.3s;
-    }}
-    .stButton>button:hover {{ background-color: {C_URS_CHAPE} !important; }}
-    
-    /* Botão Verde do WhatsApp */
-    .btn-wa-link button {{
-        background-color: #25D366 !important;
-        color: white !important;
-        border-radius: 20px;
-        border: none;
-        height: 45px;
-        width: 100%;
-        cursor: pointer;
-        font-weight: bold;
-    }}
-    .btn-wa-link button:hover {{ background-color: #128C7E !important; }}
 
-    /* Cards de Histórico (Marrom Tan com Destaque Dourado) */
-    .card-item {{
-        background: {C_URS_BASE};
-        padding: 15px;
-        border-radius: 12px;
-        margin-bottom: 10px;
-        border-left: 6px solid {C_URS_MED};
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    /* Cabeçalho com Logo */
+    .app-header {{
+        text-align: center;
+        padding: 10px;
+        margin-bottom: 15px;
     }}
-    .card-item small, .card-item b {{ color: {C_URS_TEXTO} !important; }}
 
-    /* Expander e Inputs */
-    .stExpander {{ background: white; border-radius: 12px; }}
-    [data-testid="stForm"] {{ border: none; padding: 0; }}
-    div[data-baseweb="input"] > div {{
-        border-color: {C_URS_MED} !important;
-    }}
-    
-    /* Card de Status de Dívida (Degradê Urso) */
-    .status-card-urso {{
-        background: linear-gradient(135deg, {C_URS_TEXTO}, {C_URS_MED});
+    /* Card de Saldo Estilo Nubank/Inter */
+    .balance-card {{
+        background: linear-gradient(135deg, #4E3620 0%, #CD853F 100%);
         color: white;
         padding: 25px;
         border-radius: 20px;
-        text-align: center;
-        margin-bottom: 30px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        text-align: left;
     }}
-    .status-card-urso h2 {{ color: white !important; font-weight: bold; font-size: 2.8em !important; }}
+    .balance-label {{ font-size: 14px; opacity: 0.8; margin-bottom: 5px; }}
+    .balance-value {{ font-size: 32px; font-weight: bold; }}
 
-    /* Navegação por Abas */
-    button[data-baseweb="tab"] {{
-        background-color: {C_URS_TEXT_LOGO} !important;
-        color: {C_URS_TEXTO} !important;
-        border-radius: 10px 10px 0 0;
-        margin-right: 5px;
+    /* Cards de Transação Profissionais */
+    .item-card {{
+        background: white;
+        padding: 15px;
+        border-radius: 15px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border-left: 5px solid #D2B48C;
     }}
-    button[data-baseweb="tab"][aria-selected="true"] {{
-        background-color: {C_URS_MED} !important;
+    .item-info {{ display: flex; flex-direction: column; }}
+    .item-title {{ font-weight: bold; color: #4E3620; font-size: 16px; }}
+    .item-date {{ font-size: 12px; color: #888; }}
+    .item-price {{ font-weight: bold; font-size: 16px; }}
+    
+    /* Botões Flutuantes de Ação */
+    .stButton > button {{
+        width: 100%;
+        border-radius: 12px;
+        height: 50px;
+        background-color: #4E3620 !important;
         color: white !important;
+        border: none;
+        font-weight: 600;
+        margin-top: 10px;
+    }}
+    
+    /* Input Style */
+    input {{
+        border-radius: 10px !important;
     }}
     </style>
     """, unsafe_allow_html=True)
 
 # --- BANCO DE DADOS ---
-DB_CLIENTES_URS = "clientes_urso.csv"
-DB_VENDAS_URS = "vendas_urso.csv"
+DB_VENDAS = "vendas_final.csv"
+DB_CLIENTES = "clientes_final.csv"
 
-def carregar():
-    c = pd.read_csv(DB_CLIENTES_URS) if os.path.exists(DB_CLIENTES_URS) else pd.DataFrame(columns=['Nome', 'Telefone', 'Avatar'])
-    v = pd.read_csv(DB_VENDAS_URS) if os.path.exists(DB_VENDAS_URS) else pd.DataFrame(columns=['ID', 'Cliente', 'Item', 'Valor', 'Data', 'Tipo'])
+def load_data():
+    c = pd.read_csv(DB_CLIENTES) if os.path.exists(DB_CLIENTES) else pd.DataFrame(columns=['Nome', 'Telefone'])
+    v = pd.read_csv(DB_VENDAS) if os.path.exists(DB_VENDAS) else pd.DataFrame(columns=['ID', 'Cliente', 'Item', 'Valor', 'Data', 'Tipo'])
     return c, v
 
-df_c, df_v = carregar()
+df_c, df_v = load_data()
 
-# --- SIDEBAR: CADASTRO TEMÁTICO ---
-with st.sidebar:
-    st.header("⚙️ Novo Cliente BEAR")
-    n_nome_u = st.text_input("Nome do Cliente")
-    n_tel_u = st.text_input("WhatsApp (ex: 5511999999999)")
-    if st.button("Cadastrar Novo Lançamento"):
-        if n_nome_u:
-            novo_c_u = pd.concat([df_c, pd.DataFrame([{'Nome': n_nome_u, 'Telefone': n_tel_u, 'Avatar': '🐻'}])], ignore_index=True)
-            novo_c_u.to_csv(DB_CLIENTES_URS, index=False)
-            st.success("Cliente cadastrado com sucesso!")
+# --- CONTEÚDO DO APP ---
+
+# 1. LOGO
+st.markdown('<div class="app-header">', unsafe_allow_html=True)
+if os.path.exists("logo.png"):
+    st.image("logo.png", width=120)
+else:
+    st.title("🐻 BEAR SNACK")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# 2. SELEÇÃO DE CLIENTE (Simples e Direta)
+cliente = st.selectbox("Escolha o Cliente", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
+
+if cliente != "-- Selecionar --":
+    vendas_c = df_v[df_v['Cliente'] == cliente]
+    saldo = vendas_c[vendas_c['Tipo'] == 'Compra']['Valor'].sum() - vendas_c[vendas_c['Tipo'] == 'Pagamento']['Valor'].sum()
+    tel = df_c[df_c['Nome'] == cliente]['Telefone'].values[0]
+
+    # 3. CARD DE SALDO PROFISSIONAL
+    st.markdown(f"""
+        <div class="balance-card">
+            <div class="balance-label">Total em aberto:</div>
+            <div class="balance-value">R$ {saldo:,.2f}</div>
+            <div style="font-size:12px; margin-top:10px;">Cliente: {cliente}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # 4. BOTÕES DE AÇÃO RÁPIDA
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("➕ Nova Compra"): st.session_state.mode = "Compra"
+    with col2:
+        if st.button("💵 Receber"): st.session_state.mode = "Pagamento"
+
+    # Formulário de Lançamento (Só aparece se clicar nos botões acima)
+    if 'mode' in st.session_state:
+        with st.expander(f"Registrar {st.session_state.mode}", expanded=True):
+            with st.form("form_entry", clear_on_submit=True):
+                val = st.number_input("Valor", min_value=0.0, step=1.0)
+                desc = st.text_input("Descrição (O que foi?)")
+                if st.form_submit_button("Confirmar"):
+                    new_id = datetime.now().strftime("%H%M%S")
+                    new_row = pd.DataFrame([{'ID': new_id, 'Cliente': cliente, 'Item': desc, 'Valor': val, 'Data': datetime.now().strftime("%d/%m"), 'Tipo': st.session_state.mode}])
+                    df_v = pd.concat([df_v, new_row], ignore_index=True)
+                    df_v.to_csv(DB_VENDAS, index=False)
+                    del st.session_state.mode
+                    st.rerun()
+
+    # 5. WHATSAPP (Botão Único)
+    msg = f"Olá {cliente}, seu saldo no Bear Snack é de R$ {saldo:,.2f}."
+    wa_url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
+    st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer; margin-bottom:20px;">📲 Cobrar via WhatsApp</button></a>', unsafe_allow_html=True)
+
+    # 6. HISTÓRICO EM CARDS (Limpo e profissional)
+    st.write("---")
+    st.write("### Histórico")
+    for i, row in vendas_c.iloc[::-1].iterrows():
+        color = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
+        symbol = "+" if row['Tipo'] == "Compra" else "-"
+        
+        st.markdown(f"""
+            <div class="item-card">
+                <div class="item-info">
+                    <span class="item-title">{row['Item'] if row['Item'] else row['Tipo']}</span>
+                    <span class="item-date">{row['Data']}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="item-price" style="color:{color}">{symbol} R$ {row['Valor']:,.2f}</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        # Botão de excluir discreto abaixo do card se necessário
+        if st.button("Excluir", key=f"del_{row['ID']}"):
+            df_v = df_v[df_v['ID'] != row['ID']].to_csv(DB_VENDAS, index=False)
             st.rerun()
 
-# --- TELA PRINCIPAL: LOGO E IDENTIDADE ---
-col_logo, col_desc = st.columns([0.4, 0.6])
-with col_logo:
-    # Mostra o logo oficial do "BEAR SNACK" (Ajuste o caminho para 'logo.png' no seu repo)
-    if os.path.exists("logo.png"):
-        img = Image.open("logo.png")
-        st.image(img, use_column_width=True)
-    else:
-        # Texto de segurança caso o logo não seja encontrado no GitHub
-        st.markdown('<h1 style="color:#B03020;">BEAR SNACK</h1>', unsafe_allow_html=True)
-with col_desc:
-    st.markdown('<p style="margin-top:20px;">Sistema de Gestão de Vendas e Cobranças de Dívidas</p>', unsafe_allow_html=True)
-
-if df_c.empty:
-    st.info("🐻 Use a barra lateral para cadastrar seu primeiro cliente do Livro de Fiados.")
-else:
-    cliente_sel_u = st.selectbox("Selecione o Cliente para Gerenciar Dívida:", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
-
-    if cliente_sel_u != "-- Selecionar --":
-        # Dados do cliente
-        dados_cliente_u = df_c[df_c['Nome'] == cliente_sel_u].iloc[0]
-        vendas_c_u = df_v[df_v['Cliente'] == cliente_sel_u]
-        
-        # Cálculo de Saldo
-        compras_u = vendas_c_u[vendas_c_u['Tipo'] == 'Compra']['Valor'].sum()
-        pagamentos_u = vendas_c_u[vendas_c_u['Tipo'] == 'Pagamento']['Valor'].sum()
-        saldo_u = compras_u - pagamentos_u
-
-        # Card de Status Temático (Urso)
-        st.markdown(f"""<div class="status-card-urso">
-            <p style="margin:0; opacity:0.8; font-size:0.9em;">Saldo Devedor Ativo de {cliente_sel_u}</p>
-            <h2 style="margin:0;">R$ {saldo_u:,.2f}</h2>
-        </div>""", unsafe_allow_html=True)
-
-        # Ações do App
-        col_l_u, col_w_u = st.columns(2)
-        with col_l_u:
-            with st.expander("➕ Inserir Dados de Compra / Pagamento", expanded=True):
-                with st.form("add_venda_u", clear_on_submit=True):
-                    t_u = st.selectbox("Operação", ["Compra", "Pagamento"])
-                    v_u = st.number_input("Valor R$", min_value=0.0, step=0.50)
-                    i_u = st.text_input("Descrição (Ex: Pizza Bear, Suco Marrom)")
-                    d_u = st.date_input("Data do Registro", datetime.now())
-                    if st.form_submit_button("Confirmar Lançamento"):
-                        if v_u > 0:
-                            novo_id_u = datetime.now().strftime("%Y%m%d%H%M%S")
-                            nova_l_u = pd.DataFrame([{'ID': novo_id_u, 'Cliente': cliente_sel_u, 'Item': i_u, 'Valor': v_u, 'Data': d_u.strftime("%d/%m/%Y"), 'Tipo': t_u}])
-                            pd.concat([df_v, nova_l_u], ignore_index=True).to_csv(DB_VENDAS_URS, index=False)
-                            st.rerun()
-        
-        with col_w_u:
-            # BOTÃO COBRANÇA WHATSAPP (Mensagem customizada do Recibo)
-            data_hoje_u = datetime.now().strftime('%d/%m/%y')
-            msg_u = f"🐻 Olá {cliente_sel_u}, segue seu extrato do BEAR SNACK:\n*Saldo devedor atual:* R$ {saldo_u:,.2f}\nÚltima atualização: {data_hoje_u}\n(Este é um sistema de cobrança de fiados)."
-            link_wa_u = f"https://wa.me/{dados_cliente_u['Telefone']}?text={urllib.parse.quote(msg_u)}"
-            st.markdown(f'<a href="{link_wa_u}" target="_blank" class="btn-wa-link"><button>✉️ ENVIAR COBRANÇA</button></a>', unsafe_allow_html=True)
-
-        st.divider()
-
-        # HISTÓRICO TEMÁTICO COM EXCLUSÃO E CAIXA DE SELEÇÃO
-        st.subheader(f"📜 Histórico de {cliente_sel_u}")
-        
-        # Inverter para mostrar os mais recentes primeiro
-        for idx_u, row_u in vendas_c_u.iloc[::-1].iterrows():
-            with st.container():
-                col_info_u, col_del_u = st.columns([0.85, 0.15])
-                with col_info_u:
-                    # Cores para Compra/Pagamento
-                    status_c_u = "card-entrada" if row_u['Tipo'] == "Compra" else "card-saida"
-                    cor_v_u = "#B03020" if row_u['Tipo'] == "Compra" else "#2e7d32" # Vermelho Chapéu ou Verde Pagamento
-                    
-                    st.markdown(f"""<div class="card-item">
-                        <div>
-                            <small>{row_u['Data']}</small><br>
-                            <span style="font-weight: 600; font-size:1.1em; color:#4E3620;">{row_u['Item']}</span>
-                        </div>
-                        <div style="color:{cor_v_u}; font-weight:bold; font-size:1.2em;">
-                            {"➕" if row_u['Tipo'] == "Compra" else "➖"} R$ {row_u['Valor']:,.2f}
-                        </span>
-                    </div>""", unsafe_allow_html=True)
-                with col_del_u:
-                    # Botão de Lixeira
-                    if st.button("🗑️", key=f"del_{row_u['ID']}"):
-                        df_v = df_v[df_v['ID'] != row_u['ID']]
-                        df_v.to_csv(DB_VENDAS_URS, index=False)
-                        st.rerun()
+# ABA DE CADASTRO (Fica escondida até precisar)
+with st.sidebar:
+    st.header("Novo Cliente")
+    n = st.text_input("Nome")
+    t = st.text_input("WhatsApp")
+    if st.button("Salvar"):
+        new_c = pd.concat([df_c, pd.DataFrame([{'Nome': n, 'Telefone': t}])], ignore_index=True)
+        new_c.to_csv(DB_CLIENTES, index=False)
+        st.success("Cliente salvo!")
