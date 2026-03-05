@@ -4,24 +4,38 @@ import os
 from datetime import datetime
 import urllib.parse
 
-# --- 1. CONFIGURAÇÃO COM IDENTIDADE ---
+# --- 1. CONFIGURAÇÃO ---
 st.set_page_config(
-    page_title="Bear Snack - Gestão", 
+    page_title="Bear Snack", 
     layout="centered", 
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS TEMÁTICO "URSO" ---
+# --- 2. CSS PARA O BOTÃO DE MENU ELEGANTE E LAYOUT ---
 st.markdown("""
     <style>
-    /* Fundo da Tela */
-    .stApp { background-color: #FDF5E6; } 
+    /* Fundo e Geral */
+    .stApp { background-color: #FDF5E6; }
     
-    /* Cabeçalho e Sidebar */
-    [data-testid="stSidebar"] { background-color: #4E3620 !important; }
+    /* ESTILIZAÇÃO DO BOTÃO DE MENU (SIDEBAR) */
+    /* Esconde o ícone padrão feio */
+    button[kind="headerNoContext"] {
+        display: none !important;
+    }
+    
+    /* Cria um botão de menu elegante no topo esquerdo */
+    [data-testid="stSidebarNav"] {
+        padding-top: 20px;
+    }
+    
+    /* Customizando a Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #4E3620 !important;
+        border-right: 2px solid #D2B48C;
+    }
     [data-testid="stSidebar"] * { color: #D2B48C !important; }
-    
-    /* Card de Saldo (Vermelho Chapéu + Marrom) */
+
+    /* CARD DE SALDO */
     .balance-card {
         background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
         color: white;
@@ -33,7 +47,7 @@ st.markdown("""
         border: 2px solid #D2B48C;
     }
 
-    /* Botões Bear Snack (Marrom com texto Bege) */
+    /* BOTÕES BEAR SNACK */
     .stButton > button {
         width: 100%;
         height: 60px !important;
@@ -43,9 +57,16 @@ st.markdown("""
         font-weight: bold !important;
         font-size: 18px !important;
         border: 2px solid #D2B48C !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
-    /* Botão de WhatsApp (Verde mas arredondado) */
+    .stButton > button:hover {
+        background-color: #B03020 !important;
+        border-color: #FDF5E6 !important;
+        transform: scale(1.02);
+    }
+
+    /* BOTÃO WHATSAPP */
     .btn-wa {
         background-color: #25D366;
         color: white;
@@ -56,9 +77,10 @@ st.markdown("""
         display: block;
         font-weight: bold;
         margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
 
-    /* Cards de Histórico (Bege com borda Marrom) */
+    /* CARDS DE HISTÓRICO */
     .item-card {
         background: white;
         padding: 15px;
@@ -70,7 +92,6 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         border-left: 8px solid #CD853F;
     }
-    .item-card b { color: #4E3620; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -85,14 +106,15 @@ def load():
 
 df_c, df_v = load()
 
-# --- 4. LOGO E MENU LATERAL ---
+# --- 4. SIDEBAR (CADASTRO) ---
 with st.sidebar:
     if os.path.exists("logo.png"):
         st.image("logo.png")
     else:
-        st.title("🐻 BEAR SNACK")
+        st.markdown("<h2 style='text-align:center;'>🐻 MENU</h2>", unsafe_allow_html=True)
     
-    st.write("### 👤 Novo Cliente")
+    st.markdown("---")
+    st.subheader("👤 Novo Cliente")
     n = st.text_input("Nome")
     t = st.text_input("WhatsApp")
     if st.button("CADASTRAR"):
@@ -102,15 +124,16 @@ with st.sidebar:
             st.rerun()
 
 # --- 5. TELA PRINCIPAL ---
-st.markdown("<h1 style='text-align:center; color:#4E3620;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
+# Instrução discreta para o menu
+st.markdown("<p style='font-size:12px; color:#4E3620; margin:0;'>☰ Toque no canto superior para menu</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center; color:#4E3620; margin-bottom:0;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
 
 if df_c.empty:
-    st.info("Toque no menu (seta >) para cadastrar clientes.")
+    st.info("Abra o menu no canto superior esquerdo para cadastrar clientes.")
 else:
     cliente = st.selectbox("Quem é o cliente?", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
 
     if cliente != "-- Selecionar --":
-        # Dados do Cliente
         v_c = df_v[df_v['Cliente'] == cliente]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
         tel = df_c[df_c['Nome'] == cliente]['Telefone'].values[0]
@@ -124,14 +147,12 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-        # Botões de Toque (Mobile Ready)
         col1, col2 = st.columns(2)
         with col1:
             if st.button("➕ COMPRA"): st.session_state.op = "Compra"
         with col2:
             if st.button("💵 PAGOU"): st.session_state.op = "Pagamento"
 
-        # Formulário Dinâmico
         if 'op' in st.session_state:
             with st.form("form_lanca", clear_on_submit=True):
                 st.write(f"### Lançar {st.session_state.op}")
@@ -144,12 +165,10 @@ else:
                     del st.session_state.op
                     st.rerun()
 
-        # WhatsApp estilizado
         msg = f"Olá {cliente}, seu saldo no Bear Snack é de R$ {divida:,.2f}."
         wa_url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
         st.markdown(f'<a href="{wa_url}" target="_blank" class="btn-wa">📲 COBRAR NO WHATSAPP</a>', unsafe_allow_html=True)
 
-        # Histórico em Cards Bear
         st.write("---")
         st.write("### Histórico de Pedidos")
         for i, row in v_c.iloc[::-1].iterrows():
