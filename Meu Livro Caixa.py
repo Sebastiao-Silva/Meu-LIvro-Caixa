@@ -11,43 +11,35 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA O BOTÃO DE MENU ELEGANTE E LAYOUT ---
+# --- 2. CSS PARA O LAYOUT BEAR SNACK (SEM CONFLITO) ---
 st.markdown("""
     <style>
-    /* Fundo e Geral */
+    /* Fundo Creme e Geral */
     .stApp { background-color: #FDF5E6; }
     
-    /* ESTILIZAÇÃO DO BOTÃO DE MENU (SIDEBAR) */
-    /* Esconde o ícone padrão feio */
-    button[kind="headerNoContext"] {
-        display: none !important;
-    }
+    /* Ajuste de Respiro no Topo para não bater na barra do Streamlit */
+    .block-container { padding-top: 3rem !important; }
     
-    /* Cria um botão de menu elegante no topo esquerdo */
-    [data-testid="stSidebarNav"] {
-        padding-top: 20px;
-    }
-    
-    /* Customizando a Sidebar */
+    /* Estilização da Sidebar (Menu Lateral) */
     [data-testid="stSidebar"] {
         background-color: #4E3620 !important;
         border-right: 2px solid #D2B48C;
     }
     [data-testid="stSidebar"] * { color: #D2B48C !important; }
 
-    /* CARD DE SALDO */
+    /* CARD DE SALDO - TEMA URSO */
     .balance-card {
         background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
         color: white;
-        padding: 30px;
-        border-radius: 25px;
+        padding: 25px;
+        border-radius: 20px;
         text-align: center;
         margin-bottom: 20px;
         box-shadow: 0 8px 16px rgba(0,0,0,0.2);
         border: 2px solid #D2B48C;
     }
 
-    /* BOTÕES BEAR SNACK */
+    /* BOTÕES PRINCIPAIS */
     .stButton > button {
         width: 100%;
         height: 60px !important;
@@ -57,19 +49,12 @@ st.markdown("""
         font-weight: bold !important;
         font-size: 18px !important;
         border: 2px solid #D2B48C !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
-    .stButton > button:hover {
-        background-color: #B03020 !important;
-        border-color: #FDF5E6 !important;
-        transform: scale(1.02);
-    }
-
     /* BOTÃO WHATSAPP */
     .btn-wa {
         background-color: #25D366;
-        color: white;
+        color: white !important;
         padding: 15px;
         border-radius: 15px;
         text-align: center;
@@ -106,7 +91,7 @@ def load():
 
 df_c, df_v = load()
 
-# --- 4. SIDEBAR (CADASTRO) ---
+# --- 4. SIDEBAR (MENU DE CADASTRO) ---
 with st.sidebar:
     if os.path.exists("logo.png"):
         st.image("logo.png")
@@ -115,23 +100,31 @@ with st.sidebar:
     
     st.markdown("---")
     st.subheader("👤 Novo Cliente")
-    n = st.text_input("Nome")
-    t = st.text_input("WhatsApp")
-    if st.button("CADASTRAR"):
-        if n:
-            new_c = pd.concat([df_c, pd.DataFrame([{'Nome': n, 'Telefone': t}])], ignore_index=True)
+    nome_n = st.text_input("Nome", key="cad_nome")
+    tel_n = st.text_input("WhatsApp", key="cad_tel")
+    if st.button("CADASTRAR", key="btn_cad"):
+        if nome_n:
+            new_c = pd.concat([df_c, pd.DataFrame([{'Nome': nome_n, 'Telefone': tel_n}])], ignore_index=True)
             new_c.to_csv(DB_CLIENTES, index=False)
             st.rerun()
 
 # --- 5. TELA PRINCIPAL ---
-# Instrução discreta para o menu
-st.markdown("<p style='font-size:12px; color:#4E3620; margin:0;'>☰ Toque no canto superior para menu</p>", unsafe_allow_html=True)
-st.markdown("<h1 style='text-align:center; color:#4E3620; margin-bottom:0;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
+
+# TÍTULO / LOGO CENTRALIZADO
+st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+if os.path.exists("logo.png"):
+    st.image("logo.png", width=150)
+else:
+    st.markdown("<h1 style='color:#4E3620;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+# BOTÃO DE MENU VISUAL (Indica onde clicar na barra nativa)
+st.markdown("<p style='text-align:center; font-size:14px; color:#4E3620; font-weight:bold;'>☰ TOQUE NA SETA NO CANTO SUPERIOR PARA CADASTRAR</p>", unsafe_allow_html=True)
 
 if df_c.empty:
-    st.info("Abra o menu no canto superior esquerdo para cadastrar clientes.")
+    st.info("Abra o menu lateral para começar.")
 else:
-    cliente = st.selectbox("Quem é o cliente?", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
+    cliente = st.selectbox("Selecione o Cliente:", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
 
     if cliente != "-- Selecionar --":
         v_c = df_v[df_v['Cliente'] == cliente]
@@ -165,6 +158,7 @@ else:
                     del st.session_state.op
                     st.rerun()
 
+        # Botão WhatsApp
         msg = f"Olá {cliente}, seu saldo no Bear Snack é de R$ {divida:,.2f}."
         wa_url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
         st.markdown(f'<a href="{wa_url}" target="_blank" class="btn-wa">📲 COBRAR NO WHATSAPP</a>', unsafe_allow_html=True)
