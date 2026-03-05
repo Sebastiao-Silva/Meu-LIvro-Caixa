@@ -7,13 +7,12 @@ import urllib.parse
 # --- 1. CONFIGURAÇÃO (PRESERVADA) ---
 st.set_page_config(page_title="Bear Snack", layout="centered", initial_sidebar_state="collapsed")
 
-# --- 2. O SEU CSS BEAR SNACK (BLOQUEADO PARA NÃO MUDAR) ---
+# --- 2. O SEU CSS BEAR SNACK (BLOQUEADO) ---
 st.markdown("""
     <style>
     .stApp { background-color: #FDF5E6; }
     .block-container { padding-top: 2rem !important; }
     
-    /* Card de Saldo Original */
     .balance-card {
         background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
         color: white;
@@ -25,7 +24,6 @@ st.markdown("""
         border: 2px solid #D2B48C;
     }
 
-    /* Botões Marrom e Bege Original */
     .stButton > button {
         width: 100%;
         height: 60px !important;
@@ -36,7 +34,14 @@ st.markdown("""
         border: 2px solid #D2B48C !important;
     }
     
-    /* Histórico Original */
+    /* Estilo específico para botões de valor rápido */
+    .val-btn > div > button {
+        height: 45px !important;
+        font-size: 14px !important;
+        background-color: #D2B48C !important;
+        color: #4E3620 !important;
+    }
+
     .item-card {
         background: white;
         padding: 15px;
@@ -54,7 +59,6 @@ st.markdown("""
 if 'logado' not in st.session_state:
     st.session_state.logado = False
 
-# TELA DE LOGIN
 if not st.session_state.logado:
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
     if os.path.exists("logo.png"):
@@ -73,7 +77,7 @@ if not st.session_state.logado:
             else:
                 st.error("Dados incorretos")
 
-# --- 4. APP PRINCIPAL (SÓ ABRE SE LOGADO) ---
+# --- 4. APP PRINCIPAL ---
 else:
     DB_VENDAS = "vendas_bear_final.csv"
     DB_CLIENTES = "clientes_bear_final.csv"
@@ -85,7 +89,6 @@ else:
 
     df_c, df_v = load()
 
-    # Sidebar com Logout
     with st.sidebar:
         if st.button("🚪 SAIR DO APP"):
             st.session_state.logado = False
@@ -100,7 +103,6 @@ else:
                 new_c.to_csv(DB_CLIENTES, index=False)
                 st.rerun()
 
-    # Logo Centralizada
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
     if os.path.exists("logo.png"):
         st.image("logo.png", width=120)
@@ -118,7 +120,6 @@ else:
             divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
             tel = df_c[df_c['Nome'] == cliente]['Telefone'].values[0]
 
-            # CARD DE SALDO
             st.markdown(f"""
                 <div class="balance-card">
                     <p style="margin:0; opacity:0.8;">Dívida de {cliente}</p>
@@ -134,12 +135,39 @@ else:
 
             if 'op' in st.session_state:
                 with st.form("lanca"):
-                    v_f = st.number_input("Valor", min_value=0.0)
-                    i_f = st.text_input("Descrição")
-                    if st.form_submit_button("SALVAR"):
-                        nid = datetime.now().strftime("%f")
-                        new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente, 'Item': i_f, 'Valor': v_f, 'Data': datetime.now().strftime("%d/%m"), 'Tipo': st.session_state.op}])
+                    st.write(f"### Registrar {st.session_state.op}")
+                    
+                    # Inicializa o valor no estado se não existir
+                    if 'valor_input' not in st.session_state:
+                        st.session_state.valor_input = 0.0
+                    
+                    val_final = st.number_input("Valor R$", min_value=0.0, step=1.0, value=st.session_state.valor_input)
+                    
+                    # Botões de valores rápidos
+                    st.write("Valores sugeridos:")
+                    col_v1, col_v2, col_v3 = st.columns(3)
+                    with col_v1:
+                        if st.form_submit_button("R$ 6,00"): 
+                            st.session_state.valor_input = 6.0
+                            st.rerun()
+                    with col_v2:
+                        if st.form_submit_button("R$ 7,00"): 
+                            st.session_state.valor_input = 7.0
+                            st.rerun()
+                    with col_v3:
+                        if st.form_submit_button("R$ 8,00"): 
+                            st.session_state.valor_input = 8.0
+                            st.rerun()
+                    
+                    i_f = st.text_input("Descrição (Ex: Coxinha, Suco...)")
+                    
+                    if st.form_submit_button("CONFIRMAR E SALVAR"):
+                        nid = datetime.now().strftime("%Y%m%d%H%M%S")
+                        # Agora salva Data + Horário
+                        agora = datetime.now().strftime("%d/%m - %H:%M")
+                        new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente, 'Item': i_f, 'Valor': val_final, 'Data': agora, 'Tipo': st.session_state.op}])
                         pd.concat([df_v, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
+                        st.session_state.valor_input = 0.0 # Reseta o valor
                         del st.session_state.op
                         st.rerun()
 
@@ -148,16 +176,20 @@ else:
             url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
             st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 COBRAR NO WHATSAPP</div></a>', unsafe_allow_html=True)
 
-            # Histórico
+            # Histórico com Data e Hora
+            st.write("### Extrato Detalhado")
             for i, row in v_c.iloc[::-1].iterrows():
                 cor = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
                 st.markdown(f"""
                     <div class="item-card">
-                        <div><b>{row['Item']}</b><br><small>{row['Data']}</small></div>
+                        <div>
+                            <b>{row['Item'] if str(row['Item']) != 'nan' and row['Item'] != '' else row['Tipo']}</b><br>
+                            <small>{row['Data']}</small>
+                        </div>
                         <b style="color:{cor}; font-size:18px;">R$ {row['Valor']:.2f}</b>
                     </div>
                 """, unsafe_allow_html=True)
-                if st.button("Apagar", key=f"del_{row['ID']}"):
+                if st.button("🗑️", key=f"del_{row['ID']}"):
                     df_v = df_v[df_v['ID'] != row['ID']]
                     df_v.to_csv(DB_VENDAS, index=False)
                     st.rerun()
