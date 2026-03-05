@@ -181,7 +181,7 @@ else:
                         if st.form_submit_button("R$ 7,00"): 
                             st.session_state.valor_input = 7.0
                             st.rerun()
-                   with col_v4:
+                    with col_v4:
                         if st.form_submit_button("R$ 8,00"): 
                             st.session_state.valor_input = 8.0
                             st.rerun()        
@@ -214,5 +214,6 @@ else:
                     df_v = df_v[df_v['ID'] != row['ID']]
                     df_v.to_csv(DB_VENDAS, index=False)
                     st.rerun()
+
 
 
