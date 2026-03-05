@@ -7,12 +7,30 @@ import urllib.parse
 # --- 1. CONFIGURAÇÃO (PRESERVADA) ---
 st.set_page_config(page_title="Bear Snack", layout="centered", initial_sidebar_state="collapsed")
 
-# --- 2. O SEU CSS BEAR SNACK (BLOQUEADO) ---
+# --- 2. O SEU CSS BEAR SNACK (ATUALIZADO PARA ABAS) ---
 st.markdown("""
     <style>
     .stApp { background-color: #FDF5E6; }
     .block-container { padding-top: 2rem !important; }
     
+    /* Estilização das Abas (Tabs) */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: #FDF5E6;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        background-color: #D2B48C;
+        border-radius: 10px 10px 0px 0px;
+        color: #4E3620;
+        font-weight: bold;
+        padding: 0px 20px;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #4E3620 !important;
+        color: #D2B48C !important;
+    }
+
     .balance-card {
         background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
         color: white;
@@ -34,14 +52,6 @@ st.markdown("""
         border: 2px solid #D2B48C !important;
     }
     
-    /* Estilo específico para botões de valor rápido */
-    .val-btn > div > button {
-        height: 45px !important;
-        font-size: 14px !important;
-        background-color: #D2B48C !important;
-        color: #4E3620 !important;
-    }
-
     .item-card {
         background: white;
         padding: 15px;
@@ -79,27 +89,35 @@ if not st.session_state.logado:
 
 # --- 4. APP PRINCIPAL ---
 else:
+    # Adicionada coluna 'Categoria' no banco de dados
     DB_VENDAS = "vendas_bear_final.csv"
     DB_CLIENTES = "clientes_bear_final.csv"
 
     def load():
-        c = pd.read_csv(DB_CLIENTES) if os.path.exists(DB_CLIENTES) else pd.DataFrame(columns=['Nome', 'Telefone'])
+        if os.path.exists(DB_CLIENTES):
+            c = pd.read_csv(DB_CLIENTES)
+            if 'Categoria' not in c.columns: # Atualização de banco antigo
+                c['Categoria'] = 'Aluno'
+        else:
+            c = pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria'])
+            
         v = pd.read_csv(DB_VENDAS) if os.path.exists(DB_VENDAS) else pd.DataFrame(columns=['ID', 'Cliente', 'Item', 'Valor', 'Data', 'Tipo'])
         return c, v
 
     df_c, df_v = load()
 
     with st.sidebar:
-        if st.button("🚪 SAIR DO APP"):
+        if st.button("🚪 SAIR"):
             st.session_state.logado = False
             st.rerun()
         st.divider()
-        st.subheader("👤 Novo Cliente")
+        st.subheader("👤 Novo Cadastro")
         n = st.text_input("Nome")
         t = st.text_input("WhatsApp")
+        cat = st.selectbox("Tipo:", ["Aluno", "Funcionário"])
         if st.button("CADASTRAR"):
             if n:
-                new_c = pd.concat([df_c, pd.DataFrame([{'Nome': n, 'Telefone': t}])], ignore_index=True)
+                new_c = pd.concat([df_c, pd.DataFrame([{'Nome': n, 'Telefone': t, 'Categoria': cat}])], ignore_index=True)
                 new_c.to_csv(DB_CLIENTES, index=False)
                 st.rerun()
 
@@ -111,18 +129,30 @@ else:
     st.markdown("</div>", unsafe_allow_html=True)
 
     if df_c.empty:
-        st.info("Acesse o menu lateral para cadastrar clientes.")
+        st.info("Cadastre alguém no menu lateral para começar.")
     else:
-        cliente = st.selectbox("Cliente:", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
+        # --- SEPARAÇÃO POR ABAS ---
+        aba_aluno, aba_func = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS"])
+        
+        with aba_aluno:
+            lista_alunos = df_c[df_c['Categoria'] == 'Aluno']['Nome'].unique()
+            cliente = st.selectbox("Selecione o Aluno:", ["-- Selecionar --"] + list(lista_alunos), key="sel_aluno")
+            
+        with aba_func:
+            lista_funcs = df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()
+            cliente_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(lista_funcs), key="sel_func")
+            
+        # Lógica para saber qual cliente foi selecionado (de qual aba)
+        cliente_final = cliente if cliente != "-- Selecionar --" else (cliente_f if cliente_f != "-- Selecionar --" else None)
 
-        if cliente != "-- Selecionar --":
-            v_c = df_v[df_v['Cliente'] == cliente]
+        if cliente_final:
+            v_c = df_v[df_v['Cliente'] == cliente_final]
             divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
-            tel = df_c[df_c['Nome'] == cliente]['Telefone'].values[0]
+            tel = df_c[df_c['Nome'] == cliente_final]['Telefone'].values[0]
 
             st.markdown(f"""
                 <div class="balance-card">
-                    <p style="margin:0; opacity:0.8;">Dívida de {cliente}</p>
+                    <p style="margin:0; opacity:0.8;">Dívida de {cliente_final}</p>
                     <h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1>
                 </div>
             """, unsafe_allow_html=True)
@@ -137,13 +167,11 @@ else:
                 with st.form("lanca"):
                     st.write(f"### Registrar {st.session_state.op}")
                     
-                    # Inicializa o valor no estado se não existir
                     if 'valor_input' not in st.session_state:
                         st.session_state.valor_input = 0.0
                     
                     val_final = st.number_input("Valor R$", min_value=0.0, step=1.0, value=st.session_state.valor_input)
                     
-                    # Botões de valores rápidos
                     st.write("Valores sugeridos:")
                     col_v1, col_v2, col_v3 = st.columns(3)
                     with col_v1:
@@ -159,33 +187,27 @@ else:
                             st.session_state.valor_input = 8.0
                             st.rerun()
                     
-                    i_f = st.text_input("Descrição (Ex: Coxinha, Suco...)")
+                    i_f = st.text_input("Descrição")
                     
-                    if st.form_submit_button("CONFIRMAR E SALVAR"):
+                    if st.form_submit_button("CONFIRMAR"):
                         nid = datetime.now().strftime("%Y%m%d%H%M%S")
-                        # Agora salva Data + Horário
                         agora = datetime.now().strftime("%d/%m - %H:%M")
-                        new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente, 'Item': i_f, 'Valor': val_final, 'Data': agora, 'Tipo': st.session_state.op}])
+                        new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente_final, 'Item': i_f, 'Valor': val_final, 'Data': agora, 'Tipo': st.session_state.op}])
                         pd.concat([df_v, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
-                        st.session_state.valor_input = 0.0 # Reseta o valor
+                        st.session_state.valor_input = 0.0
                         del st.session_state.op
                         st.rerun()
 
-            # WhatsApp
-            msg = f"Olá {cliente}, seu saldo no Bear Snack é R$ {divida:,.2f}"
+            msg = f"Olá {cliente_final}, seu saldo no Bear Snack é R$ {divida:,.2f}"
             url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
             st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 COBRAR NO WHATSAPP</div></a>', unsafe_allow_html=True)
 
-            # Histórico com Data e Hora
-            st.write("### Extrato Detalhado")
+            st.write("### Histórico Recente")
             for i, row in v_c.iloc[::-1].iterrows():
                 cor = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
                 st.markdown(f"""
                     <div class="item-card">
-                        <div>
-                            <b>{row['Item'] if str(row['Item']) != 'nan' and row['Item'] != '' else row['Tipo']}</b><br>
-                            <small>{row['Data']}</small>
-                        </div>
+                        <div><b>{row['Item'] if str(row['Item']) != 'nan' and row['Item'] != '' else row['Tipo']}</b><br><small>{row['Data']}</small></div>
                         <b style="color:{cor}; font-size:18px;">R$ {row['Valor']:.2f}</b>
                     </div>
                 """, unsafe_allow_html=True)
