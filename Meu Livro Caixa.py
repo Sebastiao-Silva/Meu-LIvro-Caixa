@@ -171,11 +171,11 @@ else:
                     col_v1, col_v2, col_v3, col_v4 = st.columns(4)
                     with col_v1:
                         if st.form_submit_button("R$ 4,00"): 
-                            st.session_state.valor_input = 6.0
+                            st.session_state.valor_input = 4.0
                             st.rerun()
                     with col_v2:
                         if st.form_submit_button("R$ 6,00"): 
-                            st.session_state.valor_input = 7.0
+                            st.session_state.valor_input = 6.0
                             st.rerun()
                     with col_v3:
                         if st.form_submit_button("R$ 7,00"): 
@@ -214,4 +214,5 @@ else:
                     df_v = df_v[df_v['ID'] != row['ID']]
                     df_v.to_csv(DB_VENDAS, index=False)
                     st.rerun()
+
 
