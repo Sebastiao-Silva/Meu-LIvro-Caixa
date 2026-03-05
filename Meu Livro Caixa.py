@@ -11,29 +11,27 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PARA O BOTÃO DE MENU ELEGANTE E LAYOUT ---
+# --- 2. CSS PARA O BOTÃO DE MENU E LAYOUT ---
 st.markdown("""
     <style>
     /* Fundo e Geral */
     .stApp { background-color: #FDF5E6; }
     
-    /* ESTILIZAÇÃO DO BOTÃO DE MENU (SIDEBAR) */
-    /* Esconde o ícone padrão feio */
-    button[kind="headerNoContext"] {
-        display: none !important;
+    /* CRIANDO O BOTÃO DE MENU ELEGANTE */
+    .menu-button {
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        background-color: #4E3620;
+        color: #D2B48C;
+        padding: 10px 15px;
+        border-radius: 10px;
+        font-weight: bold;
+        z-index: 9999;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        border: 1px solid #D2B48C;
+        cursor: pointer;
     }
-    
-    /* Cria um botão de menu elegante no topo esquerdo */
-    [data-testid="stSidebarNav"] {
-        padding-top: 20px;
-    }
-    
-    /* Customizando a Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #4E3620 !important;
-        border-right: 2px solid #D2B48C;
-    }
-    [data-testid="stSidebar"] * { color: #D2B48C !important; }
 
     /* CARD DE SALDO */
     .balance-card {
@@ -42,12 +40,13 @@ st.markdown("""
         padding: 30px;
         border-radius: 25px;
         text-align: center;
+        margin-top: 20px;
         margin-bottom: 20px;
         box-shadow: 0 8px 16px rgba(0,0,0,0.2);
         border: 2px solid #D2B48C;
     }
 
-    /* BOTÕES BEAR SNACK */
+    /* BOTÕES PRINCIPAIS */
     .stButton > button {
         width: 100%;
         height: 60px !important;
@@ -57,13 +56,6 @@ st.markdown("""
         font-weight: bold !important;
         font-size: 18px !important;
         border: 2px solid #D2B48C !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    .stButton > button:hover {
-        background-color: #B03020 !important;
-        border-color: #FDF5E6 !important;
-        transform: scale(1.02);
     }
 
     /* BOTÃO WHATSAPP */
@@ -77,7 +69,6 @@ st.markdown("""
         display: block;
         font-weight: bold;
         margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
 
     /* CARDS DE HISTÓRICO */
@@ -106,14 +97,10 @@ def load():
 
 df_c, df_v = load()
 
-# --- 4. SIDEBAR (CADASTRO) ---
+# --- 4. SIDEBAR (MENU DE CADASTRO) ---
 with st.sidebar:
-    if os.path.exists("logo.png"):
-        st.image("logo.png")
-    else:
-        st.markdown("<h2 style='text-align:center;'>🐻 MENU</h2>", unsafe_allow_html=True)
-    
-    st.markdown("---")
+    st.markdown("<h2 style='color:#D2B48C;'>🐻 MENU</h2>", unsafe_allow_html=True)
+    st.write("---")
     st.subheader("👤 Novo Cliente")
     n = st.text_input("Nome")
     t = st.text_input("WhatsApp")
@@ -124,12 +111,14 @@ with st.sidebar:
             st.rerun()
 
 # --- 5. TELA PRINCIPAL ---
-# Instrução discreta para o menu
-st.markdown("<p style='font-size:12px; color:#4E3620; margin:0;'>☰ Toque no canto superior para menu</p>", unsafe_allow_html=True)
-st.markdown("<h1 style='text-align:center; color:#4E3620; margin-bottom:0;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
+
+# Botão visual de menu (apenas indicativo para o usuário clicar na seta original)
+st.markdown('<div class="menu-button">☰ MENU</div>', unsafe_allow_html=True)
+
+st.markdown("<h1 style='text-align:center; color:#4E3620; margin-top:40px;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
 
 if df_c.empty:
-    st.info("Abra o menu no canto superior esquerdo para cadastrar clientes.")
+    st.info("Clique no botão MENU acima para cadastrar seu primeiro cliente.")
 else:
     cliente = st.selectbox("Quem é o cliente?", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
 
