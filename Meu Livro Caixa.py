@@ -7,59 +7,35 @@ import urllib.parse
 # --- 1. CONFIGURAÇÃO (PRESERVADA) ---
 st.set_page_config(page_title="Bear Snack", layout="centered", initial_sidebar_state="collapsed")
 
-# --- 2. O SEU CSS BEAR SNACK (ATUALIZADO PARA ABAS) ---
+# --- 2. O SEU CSS BEAR SNACK (BLOQUEADO) ---
 st.markdown("""
     <style>
     .stApp { background-color: #FDF5E6; }
     .block-container { padding-top: 2rem !important; }
     
-    /* Estilização das Abas (Tabs) */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: #FDF5E6;
-    }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #FDF5E6; }
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        background-color: #D2B48C;
-        border-radius: 10px 10px 0px 0px;
-        color: #4E3620;
-        font-weight: bold;
-        padding: 0px 20px;
+        height: 50px; background-color: #D2B48C; border-radius: 10px 10px 0px 0px;
+        color: #4E3620; font-weight: bold; padding: 0px 20px;
     }
-    .stTabs [aria-selected="true"] {
-        background-color: #4E3620 !important;
-        color: #D2B48C !important;
-    }
+    .stTabs [aria-selected="true"] { background-color: #4E3620 !important; color: #D2B48C !important; }
 
     .balance-card {
         background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
-        color: white;
-        padding: 25px;
-        border-radius: 20px;
-        text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-        border: 2px solid #D2B48C;
+        color: white; padding: 25px; border-radius: 20px;
+        text-align: center; margin-bottom: 20px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2); border: 2px solid #D2B48C;
     }
 
     .stButton > button {
-        width: 100%;
-        height: 60px !important;
-        border-radius: 15px !important;
-        background-color: #4E3620 !important;
-        color: #D2B48C !important;
-        font-weight: bold !important;
-        border: 2px solid #D2B48C !important;
+        width: 100%; height: 60px !important; border-radius: 15px !important;
+        background-color: #4E3620 !important; color: #D2B48C !important;
+        font-weight: bold !important; border: 2px solid #D2B48C !important;
     }
     
     .item-card {
-        background: white;
-        padding: 15px;
-        border-radius: 15px;
-        margin-bottom: 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        background: white; padding: 15px; border-radius: 15px; margin-bottom: 12px;
+        display: flex; justify-content: space-between; align-items: center;
         border-left: 8px solid #CD853F;
     }
     </style>
@@ -89,17 +65,17 @@ if not st.session_state.logado:
 
 # --- 4. APP PRINCIPAL ---
 else:
-    # Adicionada coluna 'Categoria' no banco de dados
     DB_VENDAS = "vendas_bear_final.csv"
     DB_CLIENTES = "clientes_bear_final.csv"
 
     def load():
         if os.path.exists(DB_CLIENTES):
             c = pd.read_csv(DB_CLIENTES)
-            if 'Categoria' not in c.columns: # Atualização de banco antigo
-                c['Categoria'] = 'Aluno'
+            # Garante que as novas colunas existam no arquivo CSV
+            for col in ['Categoria', 'Periodo', 'Turma']:
+                if col not in c.columns: c[col] = ""
         else:
-            c = pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria'])
+            c = pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria', 'Periodo', 'Turma'])
             
         v = pd.read_csv(DB_VENDAS) if os.path.exists(DB_VENDAS) else pd.DataFrame(columns=['ID', 'Cliente', 'Item', 'Valor', 'Data', 'Tipo'])
         return c, v
@@ -115,10 +91,26 @@ else:
         n = st.text_input("Nome")
         t = st.text_input("WhatsApp")
         cat = st.selectbox("Tipo:", ["Aluno", "Funcionário"])
+        
+        # CAMPOS CONDICIONAIS PARA ALUNO
+        periodo = ""
+        turma = ""
+        if cat == "Aluno":
+            periodo = st.selectbox("Período:", ["Manhã", "Tarde"])
+            turma = st.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"])
+
         if st.button("CADASTRAR"):
             if n:
-                new_c = pd.concat([df_c, pd.DataFrame([{'Nome': n, 'Telefone': t, 'Categoria': cat}])], ignore_index=True)
+                novo_reg = {
+                    'Nome': n, 
+                    'Telefone': t, 
+                    'Categoria': cat, 
+                    'Periodo': periodo if cat == "Aluno" else "N/A", 
+                    'Turma': turma if cat == "Aluno" else "N/A"
+                }
+                new_c = pd.concat([df_c, pd.DataFrame([novo_reg])], ignore_index=True)
                 new_c.to_csv(DB_CLIENTES, index=False)
+                st.success(f"{n} cadastrado com sucesso!")
                 st.rerun()
 
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
@@ -131,18 +123,23 @@ else:
     if df_c.empty:
         st.info("Cadastre alguém no menu lateral para começar.")
     else:
-        # --- SEPARAÇÃO POR ABAS ---
         aba_aluno, aba_func = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS"])
         
         with aba_aluno:
-            lista_alunos = df_c[df_c['Categoria'] == 'Aluno']['Nome'].unique()
-            cliente = st.selectbox("Selecione o Aluno:", ["-- Selecionar --"] + list(lista_alunos), key="sel_aluno")
+            # Lista alunos mostrando a turma para facilitar
+            df_alunos = df_c[df_c['Categoria'] == 'Aluno']
+            if not df_alunos.empty:
+                df_alunos['Display'] = df_alunos['Nome'] + " (" + df_alunos['Periodo'] + " - " + df_alunos['Turma'] + ")"
+                sel_a = st.selectbox("Selecione o Aluno:", ["-- Selecionar --"] + list(df_alunos['Display'].unique()), key="sel_aluno")
+                cliente = sel_a.split(" (")[0] if sel_a != "-- Selecionar --" else "-- Selecionar --"
+            else:
+                st.write("Nenhum aluno cadastrado.")
+                cliente = "-- Selecionar --"
             
         with aba_func:
             lista_funcs = df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()
             cliente_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(lista_funcs), key="sel_func")
             
-        # Lógica para saber qual cliente foi selecionado (de qual aba)
         cliente_final = cliente if cliente != "-- Selecionar --" else (cliente_f if cliente_f != "-- Selecionar --" else None)
 
         if cliente_final:
@@ -166,9 +163,7 @@ else:
             if 'op' in st.session_state:
                 with st.form("lanca"):
                     st.write(f"### Registrar {st.session_state.op}")
-                    
-                    if 'valor_input' not in st.session_state:
-                        st.session_state.valor_input = 0.0
+                    if 'valor_input' not in st.session_state: st.session_state.valor_input = 0.0
                     
                     val_final = st.number_input("Valor R$", min_value=0.0, step=1.0, value=st.session_state.valor_input)
                     
