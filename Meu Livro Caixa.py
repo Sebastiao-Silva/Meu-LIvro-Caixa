@@ -168,19 +168,23 @@ else:
                     val_final = st.number_input("Valor R$", min_value=0.0, step=1.0, value=st.session_state.valor_input)
                     
                     st.write("Valores sugeridos:")
-                    col_v1, col_v2, col_v3 = st.columns(3)
+                    col_v1, col_v2, col_v3, col_v4 = st.columns(4)
                     with col_v1:
-                        if st.form_submit_button("R$ 6,00"): 
+                        if st.form_submit_button("R$ 4,00"): 
                             st.session_state.valor_input = 6.0
                             st.rerun()
                     with col_v2:
-                        if st.form_submit_button("R$ 7,00"): 
+                        if st.form_submit_button("R$ 6,00"): 
                             st.session_state.valor_input = 7.0
                             st.rerun()
                     with col_v3:
+                        if st.form_submit_button("R$ 7,00"): 
+                            st.session_state.valor_input = 7.0
+                            st.rerun()
+                   with col_v4:
                         if st.form_submit_button("R$ 8,00"): 
                             st.session_state.valor_input = 8.0
-                            st.rerun()
+                            st.rerun()        
                     
                     i_f = st.text_input("Descrição")
                     
@@ -210,3 +214,4 @@ else:
                     df_v = df_v[df_v['ID'] != row['ID']]
                     df_v.to_csv(DB_VENDAS, index=False)
                     st.rerun()
+
