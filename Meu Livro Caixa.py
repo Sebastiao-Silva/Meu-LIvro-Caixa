@@ -4,48 +4,50 @@ import os
 from datetime import datetime
 import urllib.parse
 
-# --- 1. CONFIGURAÇÃO (VOLTANDO AO QUE ESTAVA OK) ---
+# --- 1. CONFIGURAÇÃO ---
 st.set_page_config(
     page_title="Bear Snack", 
     layout="centered", 
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS TEMÁTICO REPARADO ---
+# --- 2. CSS PARA O BOTÃO DE MENU ELEGANTE E LAYOUT ---
 st.markdown("""
     <style>
-    /* Fundo Creme */
+    /* Fundo e Geral */
     .stApp { background-color: #FDF5E6; }
     
-    /* Remover margem do topo para a barra do Streamlit não sufocar o app */
-    .block-container { padding-top: 2rem !important; }
-
-    /* BOTÃO DE MENU ELEGANTE (Posicionado abaixo do topo para não sumir) */
-    .menu-trigger {
-        background-color: #4E3620;
-        color: #D2B48C;
-        padding: 8px 20px;
-        border-radius: 20px;
-        text-align: center;
-        font-weight: bold;
-        display: inline-block;
-        border: 1px solid #D2B48C;
-        margin-bottom: 20px;
+    /* ESTILIZAÇÃO DO BOTÃO DE MENU (SIDEBAR) */
+    /* Esconde o ícone padrão feio */
+    button[kind="headerNoContext"] {
+        display: none !important;
     }
+    
+    /* Cria um botão de menu elegante no topo esquerdo */
+    [data-testid="stSidebarNav"] {
+        padding-top: 20px;
+    }
+    
+    /* Customizando a Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #4E3620 !important;
+        border-right: 2px solid #D2B48C;
+    }
+    [data-testid="stSidebar"] * { color: #D2B48C !important; }
 
     /* CARD DE SALDO */
     .balance-card {
         background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
         color: white;
-        padding: 25px;
-        border-radius: 20px;
+        padding: 30px;
+        border-radius: 25px;
         text-align: center;
         margin-bottom: 20px;
         box-shadow: 0 8px 16px rgba(0,0,0,0.2);
         border: 2px solid #D2B48C;
     }
 
-    /* BOTÕES TÁTEIS */
+    /* BOTÕES BEAR SNACK */
     .stButton > button {
         width: 100%;
         height: 60px !important;
@@ -53,7 +55,29 @@ st.markdown("""
         background-color: #4E3620 !important;
         color: #D2B48C !important;
         font-weight: bold !important;
+        font-size: 18px !important;
         border: 2px solid #D2B48C !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .stButton > button:hover {
+        background-color: #B03020 !important;
+        border-color: #FDF5E6 !important;
+        transform: scale(1.02);
+    }
+
+    /* BOTÃO WHATSAPP */
+    .btn-wa {
+        background-color: #25D366;
+        color: white;
+        padding: 15px;
+        border-radius: 15px;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+        font-weight: bold;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
 
     /* CARDS DE HISTÓRICO */
@@ -72,8 +96,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 3. BANCO DE DADOS ---
-DB_VENDAS = "vendas_bear_v7.csv"
-DB_CLIENTES = "clientes_bear_v7.csv"
+DB_VENDAS = "vendas_bear_final.csv"
+DB_CLIENTES = "clientes_bear_final.csv"
 
 def load():
     c = pd.read_csv(DB_CLIENTES) if os.path.exists(DB_CLIENTES) else pd.DataFrame(columns=['Nome', 'Telefone'])
@@ -84,41 +108,37 @@ df_c, df_v = load()
 
 # --- 4. SIDEBAR (CADASTRO) ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#D2B48C;'>🐻 GESTÃO</h2>", unsafe_allow_html=True)
-    st.divider()
+    if os.path.exists("logo.png"):
+        st.image("logo.png")
+    else:
+        st.markdown("<h2 style='text-align:center;'>🐻 MENU</h2>", unsafe_allow_html=True)
+    
+    st.markdown("---")
     st.subheader("👤 Novo Cliente")
     n = st.text_input("Nome")
     t = st.text_input("WhatsApp")
-    if st.button("CADASTRAR CLIENTE"):
+    if st.button("CADASTRAR"):
         if n:
             new_c = pd.concat([df_c, pd.DataFrame([{'Nome': n, 'Telefone': t}])], ignore_index=True)
             new_c.to_csv(DB_CLIENTES, index=False)
             st.rerun()
 
-# --- 5. TELA PRINCIPAL (LAYOUT ORIGINAL RESTAURADO) ---
-
-# LOGOTIPO (Centralizado como antes)
-st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-if os.path.exists("logo.png"):
-    st.image("logo.png", width=140)
-else:
-    st.title("🐻 BEAR SNACK")
-
-# BOTÃO DE MENU ELEGANTE (Abaixo do logo, livre da barra do Streamlit)
-st.markdown('<div class="menu-trigger">☰ TOQUE NA SETA ACIMA PARA MENU</div>', unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+# --- 5. TELA PRINCIPAL ---
+# Instrução discreta para o menu
+st.markdown("<p style='font-size:12px; color:#4E3620; margin:0;'>☰ Toque no canto superior para menu</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center; color:#4E3620; margin-bottom:0;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
 
 if df_c.empty:
-    st.info("Abra o menu lateral para cadastrar o primeiro cliente.")
+    st.info("Abra o menu no canto superior esquerdo para cadastrar clientes.")
 else:
-    cliente = st.selectbox("Selecione o Cliente:", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
+    cliente = st.selectbox("Quem é o cliente?", ["-- Selecionar --"] + list(df_c['Nome'].unique()))
 
     if cliente != "-- Selecionar --":
         v_c = df_v[df_v['Cliente'] == cliente]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
         tel = df_c[df_c['Nome'] == cliente]['Telefone'].values[0]
 
-        # Card de Saldo
+        # Saldo Visual
         st.markdown(f"""
             <div class="balance-card">
                 <p style="margin:0; opacity:0.8;">Dívida Ativa</p>
@@ -135,22 +155,21 @@ else:
 
         if 'op' in st.session_state:
             with st.form("form_lanca", clear_on_submit=True):
-                st.write(f"### Registrar {st.session_state.op}")
-                v_f = st.number_input("Valor R$", min_value=0.0)
-                i_f = st.text_input("O que comprou?")
-                if st.form_submit_button("SALVAR"):
+                st.write(f"### Lançar {st.session_state.op}")
+                v_form = st.number_input("Valor R$", min_value=0.0, step=1.0)
+                i_form = st.text_input("Descrição")
+                if st.form_submit_button("SALVAR REGISTRO"):
                     nid = datetime.now().strftime("%f")
-                    new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente, 'Item': i_f, 'Valor': v_f, 'Data': datetime.now().strftime("%d/%m"), 'Tipo': st.session_state.op}])
+                    new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente, 'Item': i_form, 'Valor': v_form, 'Data': datetime.now().strftime("%d/%m"), 'Tipo': st.session_state.op}])
                     pd.concat([df_v, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
                     del st.session_state.op
                     st.rerun()
 
-        # WhatsApp
         msg = f"Olá {cliente}, seu saldo no Bear Snack é de R$ {divida:,.2f}."
         wa_url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
-        st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 COBRAR NO WHATSAPP</div></a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="{wa_url}" target="_blank" class="btn-wa">📲 COBRAR NO WHATSAPP</a>', unsafe_allow_html=True)
 
-        # Histórico
+        st.write("---")
         st.write("### Histórico de Pedidos")
         for i, row in v_c.iloc[::-1].iterrows():
             cor_v = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
