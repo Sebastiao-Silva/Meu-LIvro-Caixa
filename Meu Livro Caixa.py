@@ -53,20 +53,26 @@ if not st.session_state.logado:
 else:
     DB_VENDAS, DB_CLIENTES = "vendas_bear_final.csv", "clientes_bear_final.csv"
 
-    def load():
+    # Função de carga robusta para evitar perda de dados
+    def load_data():
         if os.path.exists(DB_CLIENTES):
             c = pd.read_csv(DB_CLIENTES)
-            for col in ['Categoria', 'Periodo', 'Turma', 'Limite']:
-                if col not in c.columns: c[col] = 50.0 if col == 'Limite' else "N/A"
-        else: c = pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria', 'Periodo', 'Turma', 'Limite'])
+        else:
+            c = pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria', 'Periodo', 'Turma', 'Limite'])
         
         if os.path.exists(DB_VENDAS):
             v = pd.read_csv(DB_VENDAS)
-            if 'Cat_Venda' not in v.columns: v['Cat_Venda'] = 'Aluno'
-        else: v = pd.DataFrame(columns=['ID', 'Cliente', 'Cat_Venda', 'Item', 'Valor', 'Data', 'Tipo'])
+        else:
+            v = pd.DataFrame(columns=['ID', 'Cliente', 'Cat_Venda', 'Item', 'Valor', 'Data', 'Tipo'])
+        
+        # Garantir colunas essenciais
+        for col in ['Categoria', 'Periodo', 'Turma', 'Limite']:
+            if col not in c.columns: c[col] = 50.0 if col == 'Limite' else "N/A"
+        if 'Cat_Venda' not in v.columns: v['Cat_Venda'] = 'Aluno'
+        
         return c, v
 
-    df_c, df_v = load()
+    df_c, df_v = load_data()
 
     # --- 4. SIDEBAR (CADASTRO E EDIÇÃO) ---
     with st.sidebar:
@@ -104,11 +110,15 @@ else:
 
         if st.button("SALVAR ALTERAÇÕES" if editando else "CADASTRAR"):
             if n:
-                if editando: df_c = df_c[df_c['Nome'] != cliente_para_editar]
+                # Recarrega antes de salvar para garantir que não vai apagar o que outros registros criaram
+                df_temp, _ = load_data() 
+                if editando: 
+                    df_temp = df_temp[df_temp['Nome'] != cliente_para_editar]
+                
                 new_row = pd.DataFrame([{'Nome': n, 'Telefone': t, 'Categoria': cat, 'Periodo': p, 'Turma': tur, 'Limite': lim}])
-                df_c = pd.concat([df_c, new_row], ignore_index=True)
-                df_c.to_csv(DB_CLIENTES, index=False)
-                st.success("Sucesso!")
+                df_final = pd.concat([df_temp, new_row], ignore_index=True)
+                df_final.to_csv(DB_CLIENTES, index=False)
+                st.success("Dados salvos com sucesso!")
                 st.rerun()
 
     # --- 5. TELA PRINCIPAL ---
@@ -194,10 +204,12 @@ else:
                     st.rerun()
                 if c_conf.form_submit_button("✅ CONFIRMAR REGISTRO"):
                     if vf > 0:
+                        # Recarrega vendas antes de salvar para não perder registros recentes
+                        _, df_v_atual = load_data()
                         nid = datetime.now().strftime("%Y%m%d%H%M%S")
                         agora = datetime.now().strftime("%d/%m - %H:%M")
                         new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': desc, 'Valor': vf, 'Data': agora, 'Tipo': st.session_state.op}])
-                        pd.concat([df_v, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
+                        pd.concat([df_v_atual, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
                         st.session_state.val_temp = 0.0
                         del st.session_state.op
                         st.rerun()
@@ -205,16 +217,14 @@ else:
         # --- 7. WHATSAPP COM QR CODE E CHAVE PIX ---
         st.divider()
         if os.path.exists("QRcode.jpeg"):
-            st.image("QRcode.jpeg", caption="Aponte a câmera para pagar via PIX", width=250)
-            st.code("Chave PIX: (13) 97827-5300", language="text") #
+            st.image("QRcode.jpeg", caption="Pague via PIX", width=250)
+            st.code("Chave PIX: (13) 97827-5300", language="text")
 
         if divida > 0:
-            # Texto personalizado para débito
             status_txt = f"possui um débito de R$ {divida:,.2f}"
             cor_zap = "#25D366"
-            instrucao_pix = "\n\nVocê pode pagar via PIX usando a nossa chave: (13) 97827-5300 ou solicitando o QR Code." #
+            instrucao_pix = "\n\nChave PIX: (13) 97827-5300"
         elif divida < 0:
-            # Texto personalizado para crédito
             status_txt = f"possui um crédito de R$ {abs(divida):,.2f}"
             cor_zap = "#075E54"
             instrucao_pix = ""
@@ -226,19 +236,14 @@ else:
         msg = f"Olá {cliente_final}, informamos que você {status_txt} no Bear Snack.{instrucao_pix}"
         url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
         
-        st.markdown(f'''
-            <a href="{url}" target="_blank" style="text-decoration:none;">
-                <div style="background-color:{cor_zap}; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">
-                    📲 ENVIAR SALDO E CHAVE PIX
-                </div>
-            </a>
-        ''', unsafe_allow_html=True)
+        st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:{cor_zap}; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 ENVIAR SALDO E PIX</div></a>', unsafe_allow_html=True)
 
         st.write("### Histórico Recente")
         for i, row in v_c.iloc[::-1].iterrows():
             cor = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
             st.markdown(f"""<div class="item-card"><div><b>{row['Item'] if str(row['Item']) != 'nan' and row['Item'] != '' else row['Tipo']}</b><br><small>{row['Data']}</small></div><b style="color:{cor};">R$ {row['Valor']:.2f}</b></div>""", unsafe_allow_html=True)
             if st.button("🗑️", key=f"del_{row['ID']}"):
-                df_v = df_v[df_v['ID'] != row['ID']]
-                df_v.to_csv(DB_VENDAS, index=False)
+                _, df_v_del = load_data()
+                df_v_del = df_v_del[df_v_del['ID'] != row['ID']]
+                df_v_del.to_csv(DB_VENDAS, index=False)
                 st.rerun()
