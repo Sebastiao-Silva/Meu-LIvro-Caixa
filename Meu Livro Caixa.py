@@ -105,7 +105,40 @@ else:
         sel_a = st.selectbox("Selecione o Aluno:", ["-- Selecionar --"] + list(df_fa['Nome'].unique()), key="sa_a")
         if sel_a != "-- Selecionar --":
             cliente_final, cat_final = sel_a, "Aluno"
-  # --- ÁREA DE LANÇAMENTO (RESTAURADA PARA ALUNOS E FUNCIONÁRIOS) ---
+        
+    # ABA FUNCIONÁRIOS
+    with aba_selecionada[1]:
+        sel_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()), key="sf_f")
+        if sel_f != "-- Selecionar --":
+            cliente_final, cat_final = sel_f, "Funcionário"
+
+    # ABA DEVEDORES
+    with aba_selecionada[2]:
+        # Aqui NUNCA preenchemos cliente_final, garantindo que os botões sumam
+        devedores_lista = []
+        total_geral = 0
+        for _, r in df_c.iterrows():
+            v_cli = df_v[(df_v['Cliente'] == r['Nome']) & (df_v['Cat_Venda'] == r['Categoria'])]
+            saldo = v_cli[v_cli['Tipo'] == 'Compra']['Valor'].sum() - v_cli[v_cli['Tipo'] == 'Pagamento']['Valor'].sum()
+            if saldo > 0:
+                devedores_lista.append({'Nome': r['Nome'], 'Divida': saldo, 'Cat': r['Categoria']})
+                total_geral += saldo
+        
+        st.markdown(f"""<div style="background-color:#4E3620; color:#D2B48C; padding:15px; border-radius:15px; text-align:center; margin-bottom:20px;"><small>TOTAL A RECEBER</small><br><b style="font-size:24px;">R$ {total_geral:,.2f}</b></div>""", unsafe_allow_html=True)
+        
+        dev_ord = sorted(devedores_lista, key=lambda x: x['Nome'])
+        for idx, d in enumerate(dev_ord):
+            if st.button(f"{d['Nome']} ({d['Cat']}) ➔ R$ {d['Divida']:,.2f}", key=f"d_btn_{idx}"):
+                st.session_state.dev_sel_relatorio = d
+        
+        if 'dev_sel_relatorio' in st.session_state:
+            ds = st.session_state.dev_sel_relatorio
+            st.markdown(f"""<div class="balance-card"><p style="margin:0;">{ds['Nome']} ({ds['Cat']})</p><h1 style="color:white; margin:0;">R$ {ds['Divida']:,.2f}</h1></div>""", unsafe_allow_html=True)
+            if st.button("FECHAR DETALHES"):
+                del st.session_state.dev_sel_relatorio
+                st.rerun()
+
+    # --- ÁREA DE LANÇAMENTO (RESTAURADA PARA ALUNOS E FUNCIONÁRIOS) ---
     if cliente_final:
         v_c = df_v[(df_v['Cliente'] == cliente_final) & (df_v['Cat_Venda'] == cat_final)]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
@@ -164,37 +197,4 @@ else:
             if st.button("🗑️", key=f"del_{row['ID']}"):
                 df_v = df_v[df_v['ID'] != row['ID']]
                 df_v.to_csv(DB_VENDAS, index=False)
-                st.rerun()        
-    # ABA FUNCIONÁRIOS
-    with aba_selecionada[1]:
-        sel_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()), key="sf_f")
-        if sel_f != "-- Selecionar --":
-            cliente_final, cat_final = sel_f, "Funcionário"
-
-    # ABA DEVEDORES
-    with aba_selecionada[2]:
-        # Aqui NUNCA preenchemos cliente_final, garantindo que os botões sumam
-        devedores_lista = []
-        total_geral = 0
-        for _, r in df_c.iterrows():
-            v_cli = df_v[(df_v['Cliente'] == r['Nome']) & (df_v['Cat_Venda'] == r['Categoria'])]
-            saldo = v_cli[v_cli['Tipo'] == 'Compra']['Valor'].sum() - v_cli[v_cli['Tipo'] == 'Pagamento']['Valor'].sum()
-            if saldo > 0:
-                devedores_lista.append({'Nome': r['Nome'], 'Divida': saldo, 'Cat': r['Categoria']})
-                total_geral += saldo
-        
-        st.markdown(f"""<div style="background-color:#4E3620; color:#D2B48C; padding:15px; border-radius:15px; text-align:center; margin-bottom:20px;"><small>TOTAL A RECEBER</small><br><b style="font-size:24px;">R$ {total_geral:,.2f}</b></div>""", unsafe_allow_html=True)
-        
-        dev_ord = sorted(devedores_lista, key=lambda x: x['Nome'])
-        for idx, d in enumerate(dev_ord):
-            if st.button(f"{d['Nome']} ({d['Cat']}) ➔ R$ {d['Divida']:,.2f}", key=f"d_btn_{idx}"):
-                st.session_state.dev_sel_relatorio = d
-        
-        if 'dev_sel_relatorio' in st.session_state:
-            ds = st.session_state.dev_sel_relatorio
-            st.markdown(f"""<div class="balance-card"><p style="margin:0;">{ds['Nome']} ({ds['Cat']})</p><h1 style="color:white; margin:0;">R$ {ds['Divida']:,.2f}</h1></div>""", unsafe_allow_html=True)
-            if st.button("FECHAR DETALHES"):
-                del st.session_state.dev_sel_relatorio
                 st.rerun()
-
-  
