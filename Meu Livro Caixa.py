@@ -58,6 +58,7 @@ else:
             for col in ['Categoria', 'Periodo', 'Turma', 'Limite']:
                 if col not in c.columns: c[col] = 50.0 if col == 'Limite' else "N/A"
         else: c = pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria', 'Periodo', 'Turma', 'Limite'])
+        
         if os.path.exists(DB_VENDAS):
             v = pd.read_csv(DB_VENDAS)
             if 'Cat_Venda' not in v.columns: v['Cat_Venda'] = 'Aluno'
@@ -71,29 +72,59 @@ else:
             st.session_state.logado = False
             st.rerun()
         st.divider()
-        st.subheader("👤 Novo Cadastro")
-        n, t = st.text_input("Nome"), st.text_input("WhatsApp")
-        cat = st.selectbox("Tipo:", ["Aluno", "Funcionário"])
-        lim = st.number_input("Limite R$", value=50.0)
+        
+        # --- NOVO FLUXO DE BUSCA/EDIÇÃO NA SIDEBAR ---
+        st.subheader("👤 Gerenciar Cliente")
+        
+        lista_clientes = ["-- Novo Cadastro --"] + sorted(df_c['Nome'].unique().tolist())
+        cliente_para_editar = st.selectbox("🔍 Editar Cliente Existente:", options=lista_clientes)
+
+        # Valores iniciais padrão
+        val_n, val_t, val_cat, val_lim = "", "", "Aluno", 50.0
+        val_p, val_tur = "Manhã", "1ª Turma"
+
+        # Se selecionar alguém, carregar os dados dele
+        editando = False
+        if cliente_para_editar != "-- Novo Cadastro --":
+            editando = True
+            dados = df_c[df_c['Nome'] == cliente_para_editar].iloc[0]
+            val_n, val_t, val_cat, val_lim = dados['Nome'], str(dados['Telefone']), dados['Categoria'], float(dados['Limite'])
+            val_p, val_tur = dados['Periodo'], dados['Turma']
+            st.warning(f"Editando: {cliente_para_editar}")
+
+        # Campos do Formulário
+        n = st.text_input("Nome", value=val_n)
+        t = st.text_input("WhatsApp", value=val_t)
+        cat = st.selectbox("Tipo:", ["Aluno", "Funcionário"], index=0 if val_cat == "Aluno" else 1)
+        lim = st.number_input("Limite R$", value=val_lim)
+        
         p, tur = "N/A", "N/A"
         if cat == "Aluno":
-            p = st.selectbox("Período:", ["Manhã", "Tarde"])
-            tur = st.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"])
-        if st.button("CADASTRAR"):
+            idx_p = ["Manhã", "Tarde"].index(val_p) if val_p in ["Manhã", "Tarde"] else 0
+            idx_t = ["1ª Turma", "2ª Turma", "3ª Turma"].index(val_tur) if val_tur in ["1ª Turma", "2ª Turma", "3ª Turma"] else 0
+            p = st.selectbox("Período:", ["Manhã", "Tarde"], index=idx_p)
+            tur = st.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"], index=idx_t)
+
+        label_botao = "SALVAR ALTERAÇÕES" if editando else "CADASTRAR"
+        if st.button(label_botao):
             if n:
-                new_c = pd.concat([df_c, pd.DataFrame([{'Nome': n, 'Telefone': t, 'Categoria': cat, 'Periodo': p, 'Turma': tur, 'Limite': lim}])], ignore_index=True)
-                new_c.to_csv(DB_CLIENTES, index=False)
+                if editando:
+                    # Remove a versão antiga e insere a nova (Update)
+                    df_c = df_c[df_c['Nome'] != cliente_para_editar]
+                
+                new_row = pd.DataFrame([{'Nome': n, 'Telefone': t, 'Categoria': cat, 'Periodo': p, 'Turma': tur, 'Limite': lim}])
+                df_c = pd.concat([df_c, new_row], ignore_index=True)
+                df_c.to_csv(DB_CLIENTES, index=False)
+                st.success("Dados salvos!")
                 st.rerun()
 
+    # --- TELA PRINCIPAL ---
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
     if os.path.exists("logo.png"): st.image("logo.png", width=100)
     else: st.title("🐻 Bear Snack")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- CONTROLE DE ABAS ---
-    # Usamos o index para saber em qual aba o usuário está
     aba_selecionada = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
-    
     cliente_final, cat_final = None, None
 
     # ABA ALUNOS
@@ -114,7 +145,6 @@ else:
 
     # ABA DEVEDORES
     with aba_selecionada[2]:
-        # Aqui NUNCA preenchemos cliente_final, garantindo que os botões sumam
         devedores_lista = []
         total_geral = 0
         for _, r in df_c.iterrows():
@@ -138,7 +168,7 @@ else:
                 del st.session_state.dev_sel_relatorio
                 st.rerun()
 
-    # --- ÁREA DE LANÇAMENTO (RESTAURADA PARA ALUNOS E FUNCIONÁRIOS) ---
+    # --- ÁREA DE LANÇAMENTO ---
     if cliente_final:
         v_c = df_v[(df_v['Cliente'] == cliente_final) & (df_v['Cat_Venda'] == cat_final)]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
@@ -157,10 +187,8 @@ else:
             with st.form("form_lanca"):
                 st.write(f"### Registrar {st.session_state.op}")
                 if 'val_temp' not in st.session_state: st.session_state.val_temp = 0.0
-                
                 vf = st.number_input("Valor R$", min_value=0.0, value=st.session_state.val_temp)
                 
-                # Botões de atalho restaurados
                 cv1, cv2, cv3 = st.columns(3)
                 with cv1: 
                     if st.form_submit_button("R$ 6,00"): 
@@ -185,7 +213,6 @@ else:
                     del st.session_state.op
                     st.rerun()
 
-        # WhatsApp e Histórico
         msg = f"Olá {cliente_final}, seu saldo no Bear Snack é R$ {divida:,.2f}"
         url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
         st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 COBRAR NO WHATSAPP</div></a>', unsafe_allow_html=True)
