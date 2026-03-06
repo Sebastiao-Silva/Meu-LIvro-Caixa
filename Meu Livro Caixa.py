@@ -23,9 +23,10 @@ st.markdown("""
         text-align: center; margin-bottom: 15px; border: 2px solid #D2B48C;
     }
     .stButton > button {
-        width: 100%; height: 55px !important; border-radius: 15px !important;
+        width: 100%; height: 50px !important; border-radius: 12px !important;
         background-color: #4E3620 !important; color: #D2B48C !important;
-        font-weight: bold !important; border: 2px solid #D2B48C !important;
+        font-weight: bold !important; border: 1px solid #D2B48C !important;
+        font-size: 14px !important;
     }
     .item-card {
         background: white; padding: 12px; border-radius: 12px; margin-bottom: 8px;
@@ -67,24 +68,21 @@ else:
 
     df_c, df_v = load()
 
+    # --- 4. SIDEBAR (CADASTRO E EDIÇÃO) ---
     with st.sidebar:
         if st.button("🚪 SAIR"):
             st.session_state.logado = False
             st.rerun()
         st.divider()
-        
-        # --- NOVO FLUXO DE BUSCA/EDIÇÃO NA SIDEBAR ---
         st.subheader("👤 Gerenciar Cliente")
         
         lista_clientes = ["-- Novo Cadastro --"] + sorted(df_c['Nome'].unique().tolist())
-        cliente_para_editar = st.selectbox("🔍 Editar Cliente Existente:", options=lista_clientes)
+        cliente_para_editar = st.selectbox("🔍 Buscar/Editar Cliente:", options=lista_clientes)
 
-        # Valores iniciais padrão
         val_n, val_t, val_cat, val_lim = "", "", "Aluno", 50.0
         val_p, val_tur = "Manhã", "1ª Turma"
-
-        # Se selecionar alguém, carregar os dados dele
         editando = False
+
         if cliente_para_editar != "-- Novo Cadastro --":
             editando = True
             dados = df_c[df_c['Nome'] == cliente_para_editar].iloc[0]
@@ -92,7 +90,6 @@ else:
             val_p, val_tur = dados['Periodo'], dados['Turma']
             st.warning(f"Editando: {cliente_para_editar}")
 
-        # Campos do Formulário
         n = st.text_input("Nome", value=val_n)
         t = st.text_input("WhatsApp", value=val_t)
         cat = st.selectbox("Tipo:", ["Aluno", "Funcionário"], index=0 if val_cat == "Aluno" else 1)
@@ -105,20 +102,16 @@ else:
             p = st.selectbox("Período:", ["Manhã", "Tarde"], index=idx_p)
             tur = st.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"], index=idx_t)
 
-        label_botao = "SALVAR ALTERAÇÕES" if editando else "CADASTRAR"
-        if st.button(label_botao):
+        if st.button("SALVAR ALTERAÇÕES" if editando else "CADASTRAR"):
             if n:
-                if editando:
-                    # Remove a versão antiga e insere a nova (Update)
-                    df_c = df_c[df_c['Nome'] != cliente_para_editar]
-                
+                if editando: df_c = df_c[df_c['Nome'] != cliente_para_editar]
                 new_row = pd.DataFrame([{'Nome': n, 'Telefone': t, 'Categoria': cat, 'Periodo': p, 'Turma': tur, 'Limite': lim}])
                 df_c = pd.concat([df_c, new_row], ignore_index=True)
                 df_c.to_csv(DB_CLIENTES, index=False)
-                st.success("Dados salvos!")
+                st.success("Sucesso!")
                 st.rerun()
 
-    # --- TELA PRINCIPAL ---
+    # --- 5. TELA PRINCIPAL ---
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
     if os.path.exists("logo.png"): st.image("logo.png", width=100)
     else: st.title("🐻 Bear Snack")
@@ -127,23 +120,18 @@ else:
     aba_selecionada = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
     cliente_final, cat_final = None, None
 
-    # ABA ALUNOS
     with aba_selecionada[0]:
         c1, c2 = st.columns(2)
         with c1: pf = st.selectbox("Período:", ["Manhã", "Tarde"], key="fa_p")
         with c2: tf = st.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"], key="fa_t")
         df_fa = df_c[(df_c['Categoria'] == 'Aluno') & (df_c['Periodo'] == pf) & (df_c['Turma'] == tf)]
         sel_a = st.selectbox("Selecione o Aluno:", ["-- Selecionar --"] + list(df_fa['Nome'].unique()), key="sa_a")
-        if sel_a != "-- Selecionar --":
-            cliente_final, cat_final = sel_a, "Aluno"
+        if sel_a != "-- Selecionar --": cliente_final, cat_final = sel_a, "Aluno"
         
-    # ABA FUNCIONÁRIOS
     with aba_selecionada[1]:
         sel_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()), key="sf_f")
-        if sel_f != "-- Selecionar --":
-            cliente_final, cat_final = sel_f, "Funcionário"
+        if sel_f != "-- Selecionar --": cliente_final, cat_final = sel_f, "Funcionário"
 
-    # ABA DEVEDORES
     with aba_selecionada[2]:
         devedores_lista = []
         total_geral = 0
@@ -153,14 +141,11 @@ else:
             if saldo > 0:
                 devedores_lista.append({'Nome': r['Nome'], 'Divida': saldo, 'Cat': r['Categoria']})
                 total_geral += saldo
-        
         st.markdown(f"""<div style="background-color:#4E3620; color:#D2B48C; padding:15px; border-radius:15px; text-align:center; margin-bottom:20px;"><small>TOTAL A RECEBER</small><br><b style="font-size:24px;">R$ {total_geral:,.2f}</b></div>""", unsafe_allow_html=True)
-        
         dev_ord = sorted(devedores_lista, key=lambda x: x['Nome'])
         for idx, d in enumerate(dev_ord):
             if st.button(f"{d['Nome']} ({d['Cat']}) ➔ R$ {d['Divida']:,.2f}", key=f"d_btn_{idx}"):
                 st.session_state.dev_sel_relatorio = d
-        
         if 'dev_sel_relatorio' in st.session_state:
             ds = st.session_state.dev_sel_relatorio
             st.markdown(f"""<div class="balance-card"><p style="margin:0;">{ds['Nome']} ({ds['Cat']})</p><h1 style="color:white; margin:0;">R$ {ds['Divida']:,.2f}</h1></div>""", unsafe_allow_html=True)
@@ -168,7 +153,7 @@ else:
                 del st.session_state.dev_sel_relatorio
                 st.rerun()
 
-    # --- ÁREA DE LANÇAMENTO ---
+    # --- 6. ÁREA DE LANÇAMENTO COM PRODUTOS ---
     if cliente_final:
         v_c = df_v[(df_v['Cliente'] == cliente_final) & (df_v['Cat_Venda'] == cat_final)]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
@@ -184,35 +169,41 @@ else:
             if st.button("💵 PAGOU"): st.session_state.op = "Pagamento"
 
         if 'op' in st.session_state:
-            with st.form("form_lanca"):
-                st.write(f"### Registrar {st.session_state.op}")
-                if 'val_temp' not in st.session_state: st.session_state.val_temp = 0.0
-                vf = st.number_input("Valor R$", min_value=0.0, value=st.session_state.val_temp)
-                
-                cv1, cv2, cv3 = st.columns(3)
-                with cv1: 
-                    if st.form_submit_button("R$ 6,00"): 
-                        st.session_state.val_temp = 6.0
-                        st.rerun()
-                with cv2:
-                    if st.form_submit_button("R$ 7,00"):
-                        st.session_state.val_temp = 7.0
-                        st.rerun()
-                with cv3:
-                    if st.form_submit_button("R$ 8,00"):
-                        st.session_state.val_temp = 8.0
-                        st.rerun()
-                
-                desc = st.text_input("Descrição (Opcional)")
-                if st.form_submit_button("SALVAR REGISTRO"):
-                    nid = datetime.now().strftime("%Y%m%d%H%M%S")
-                    agora = datetime.now().strftime("%d/%m - %H:%M")
-                    new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': desc, 'Valor': vf, 'Data': agora, 'Tipo': st.session_state.op}])
-                    pd.concat([df_v, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
-                    st.session_state.val_temp = 0.0
-                    del st.session_state.op
+            st.markdown(f"### Lançar {st.session_state.op}")
+            if 'val_temp' not in st.session_state: st.session_state.val_temp = 0.0
+            
+            # --- PRODUTOS EM ORDEM ALFABÉTICA ---
+            produtos = {
+                "Água": 4.0, "Biscoito": 4.0, "Fruta": 4.0, "Pipoca": 7.0,
+                "Refrigerante": 6.0, "Salgado": 8.0, "Suco": 6.0, "Suco Natural": 7.0
+            }
+
+            st.write("Selecione os itens para somar:")
+            cols_prod = st.columns(2)
+            for i, (p_nome, p_valor) in enumerate(produtos.items()):
+                if cols_prod[i % 2].button(f"{p_nome} (R$ {p_valor:.2f})", key=f"p_{p_nome}"):
+                    st.session_state.val_temp += p_valor
                     st.rerun()
 
+            with st.form("form_final"):
+                vf = st.number_input("Valor Total R$", min_value=0.0, value=st.session_state.val_temp)
+                desc = st.text_input("Descrição (Ex: Itens consumidos)")
+                
+                c_limp, c_conf = st.columns(2)
+                if c_limp.form_submit_button("🧹 ZERAR VALOR"):
+                    st.session_state.val_temp = 0.0
+                    st.rerun()
+                if c_conf.form_submit_button("✅ CONFIRMAR REGISTRO"):
+                    if vf > 0:
+                        nid = datetime.now().strftime("%Y%m%d%H%M%S")
+                        agora = datetime.now().strftime("%d/%m - %H:%M")
+                        new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': desc, 'Valor': vf, 'Data': agora, 'Tipo': st.session_state.op}])
+                        pd.concat([df_v, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
+                        st.session_state.val_temp = 0.0
+                        del st.session_state.op
+                        st.rerun()
+
+        # WhatsApp e Histórico
         msg = f"Olá {cliente_final}, seu saldo no Bear Snack é R$ {divida:,.2f}"
         url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
         st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 COBRAR NO WHATSAPP</div></a>', unsafe_allow_html=True)
