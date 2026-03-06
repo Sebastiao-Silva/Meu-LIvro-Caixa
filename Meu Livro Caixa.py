@@ -153,14 +153,14 @@ else:
                 del st.session_state.dev_sel_relatorio
                 st.rerun()
 
-    # --- 6. ÁREA DE LANÇAMENTO COM PRODUTOS ---
+    # --- 6. ÁREA DE LANÇAMENTO ---
     if cliente_final:
         v_c = df_v[(df_v['Cliente'] == cliente_final) & (df_v['Cat_Venda'] == cat_final)]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
         row_cli = df_c[(df_c['Nome'] == cliente_final) & (df_c['Categoria'] == cat_final)].iloc[0]
         limite_cli, tel = row_cli['Limite'], row_cli['Telefone']
 
-        st.markdown(f"""<div class="balance-card"><p style="margin:0; opacity:0.8;">Dívida de {cliente_final}</p><h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1><p style="margin:0; font-size:12px;">Limite: R$ {limite_cli:.2f}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="balance-card"><p style="margin:0; opacity:0.8;">Saldo de {cliente_final}</p><h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1><p style="margin:0; font-size:12px;">Limite: R$ {limite_cli:.2f}</p></div>""", unsafe_allow_html=True)
 
         col_c, col_p = st.columns(2)
         with col_c:
@@ -203,10 +203,20 @@ else:
                         del st.session_state.op
                         st.rerun()
 
-        # WhatsApp e Histórico
-        msg = f"Olá {cliente_final}, seu saldo no Bear Snack é R$ {divida:,.2f}"
+        # --- WHATSAPP INTELIGENTE (DÉBITO VS CRÉDITO) ---
+        if divida > 0:
+            status_txt = f"possui um débito de R$ {divida:,.2f}"
+            cor_zap = "#25D366"
+        elif divida < 0:
+            status_txt = f"possui um crédito de R$ {abs(divida):,.2f}"
+            cor_zap = "#075E54"
+        else:
+            status_txt = "está com o saldo zerado"
+            cor_zap = "#25D366"
+
+        msg = f"Olá {cliente_final}, informamos que você {status_txt} no Bear Snack."
         url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
-        st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 COBRAR NO WHATSAPP</div></a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:{cor_zap}; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 ENVIAR SALDO VIA WHATSAPP</div></a>', unsafe_allow_html=True)
 
         st.write("### Histórico Recente")
         for i, row in v_c.iloc[::-1].iterrows():
