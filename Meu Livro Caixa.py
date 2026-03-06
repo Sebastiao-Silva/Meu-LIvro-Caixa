@@ -99,8 +99,7 @@ else:
     
     cliente_final = None
     cat_final = None
-    # Esta variável garante que NADA de lançamento apareça na aba de relatórios
-    pode_lancar = False 
+    pode_lancar = False # Trava de segurança inicial
 
     with tab_a:
         c1, c2 = st.columns(2)
@@ -111,17 +110,17 @@ else:
         if sel_a != "-- Selecionar --":
             cliente_final = sel_a
             cat_final = "Aluno"
-            pode_lancar = True # Só permite lançar se estiver NESTA aba
+            pode_lancar = True # Libera apenas para esta aba
         
     with tab_f:
         sel_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()), key="sf_f")
         if sel_f != "-- Selecionar --":
             cliente_final = sel_f
             cat_final = "Funcionário"
-            pode_lancar = True # Só permite lançar se estiver NESTA aba
+            pode_lancar = True # Libera apenas para esta aba
 
     with tab_r:
-        # Aqui o 'pode_lancar' permanece False, bloqueando os botões abaixo
+        # Aqui pode_lancar continua False, escondendo tudo que é de ação
         devedores_lista = []
         total_geral = 0
         for _, r in df_c.iterrows():
@@ -145,7 +144,7 @@ else:
                 del st.session_state.dev_sel
                 st.rerun()
 
-    # --- ÁREA DE LANÇAMENTO (PROTEGIDA PELA VARIÁVEL pode_lancar) ---
+    # --- ÁREA DE LANÇAMENTO (TOTALMENTE TRAVADA SE ESTIVER NO RELATÓRIO) ---
     if cliente_final and cat_final and pode_lancar:
         v_c = df_v[(df_v['Cliente'] == cliente_final) & (df_v['Cat_Venda'] == cat_final)]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
