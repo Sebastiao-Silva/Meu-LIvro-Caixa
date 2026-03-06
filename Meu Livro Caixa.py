@@ -7,7 +7,7 @@ import urllib.parse
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Bear Snack Pro", layout="centered", initial_sidebar_state="collapsed")
 
-# --- 2. CSS BEAR SNACK (ESTILO LISTA DE DEVEDORES) ---
+# --- 2. CSS BEAR SNACK ---
 st.markdown("""
     <style>
     .stApp { background-color: #FDF5E6; }
@@ -27,16 +27,10 @@ st.markdown("""
         box-shadow: 0 8px 16px rgba(0,0,0,0.2); border: 2px solid #D2B48C;
     }
 
-    /* CARD DE DEVEDOR - LISTA LIMPA */
     .devedor-card {
-        background: white;
-        padding: 12px 18px;
-        border-radius: 12px;
-        margin-bottom: 8px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-left: 10px solid #B03020;
+        background: white; padding: 12px 18px; border-radius: 12px;
+        margin-bottom: 8px; display: flex; justify-content: space-between;
+        align-items: center; border-left: 10px solid #B03020;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
@@ -115,6 +109,7 @@ else:
     tab_a, tab_f, tab_r = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
     
     cliente_final = None
+    mostra_acoes = True # Variável para controlar se mostra botões de ação
 
     # ABA ALUNOS
     with tab_a:
@@ -130,8 +125,9 @@ else:
         sel_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()), key="s_f")
         if sel_f != "-- Selecionar --": cliente_final = sel_f
 
-    # ABA RELATÓRIO DE DEVEDORES (AJUSTADA)
+    # ABA RELATÓRIO DE DEVEDORES
     with tab_r:
+        mostra_acoes = False # Bloqueia botões de compra/pagamento nesta aba
         st.markdown("<h3 style='color:#4E3620; text-align:center;'>📋 Lista de Devedores</h3>", unsafe_allow_html=True)
         devedores_lista = []
         total_geral = 0
@@ -143,42 +139,40 @@ else:
                 devedores_lista.append({'Nome': row['Nome'], 'Divida': saldo})
                 total_geral += saldo
         
-        # Resumo no topo
-        st.markdown(f"""
-            <div style="background-color:#4E3620; color:#D2B48C; padding:15px; border-radius:15px; text-align:center; margin-bottom:20px;">
-                <small>TOTAL A RECEBER</small><br>
-                <b style="font-size:24px;">R$ {total_geral:,.2f}</b>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div style="background-color:#4E3620; color:#D2B48C; padding:15px; border-radius:15px; text-align:center; margin-bottom:20px;"><small>TOTAL A RECEBER</small><br><b style="font-size:24px;">R$ {total_geral:,.2f}</b></div>""", unsafe_allow_html=True)
         
-        # Lista em Ordem Alfabética
         devedores_ordenados = sorted(devedores_lista, key=lambda x: x['Nome'])
         
         if not devedores_ordenados:
-            st.success("Tudo em dia! Ninguém devendo no momento.")
+            st.success("Tudo em dia!")
         else:
             for d in devedores_ordenados:
-                st.markdown(f"""
-                    <div class="devedor-card">
-                        <span style="color:#4E3620; font-weight:bold;">{d['Nome']}</span>
-                        <span style="color:#B03020; font-weight:bold;">R$ {d['Divida']:,.2f}</span>
-                    </div>
-                """, unsafe_allow_html=True)
+                # Botão invisível sobre o card para selecionar o devedor
+                if st.button(f"{d['Nome']} ➔ R$ {d['Divida']:,.2f}", key=f"btn_dev_{d['Nome']}"):
+                    st.session_state.devedor_selecionado = d['Nome']
+            
+            # Se clicou em alguém na lista de devedores, mostra apenas a dívida dele abaixo
+            if 'devedor_selecionado' in st.session_state:
+                dev_nome = st.session_state.devedor_selecionado
+                v_dev = df_v[df_v['Cliente'] == dev_nome]
+                divida_dev = v_dev[v_dev['Tipo'] == 'Compra']['Valor'].sum() - v_dev[v_dev['Tipo'] == 'Pagamento']['Valor'].sum()
+                
+                st.markdown("---")
+                st.markdown(f"""<div class="balance-card"><p style="margin:0; opacity:0.8;">Dívida Detalhada</p><h1 style="color:white; margin:0; font-size:32px;">R$ {divida_dev:,.2f}</h1><p style="margin:0; font-weight:bold;">{dev_nome}</p></div>""", unsafe_allow_html=True)
+                
+                # Botão para limpar a seleção do devedor
+                if st.button("FECHAR DETALHES"):
+                    del st.session_state.devedor_selecionado
+                    st.rerun()
 
-    # --- TELA DE LANÇAMENTO (RESTAURADA) ---
-    if cliente_final:
+    # --- TELA DE LANÇAMENTO (Apenas nas abas Alunos/Funcionários) ---
+    if cliente_final and mostra_acoes:
         v_c = df_v[df_v['Cliente'] == cliente_final]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
         limite_cli = df_c[df_c['Nome'] == cliente_final]['Limite'].values[0]
         tel = df_c[df_c['Nome'] == cliente_final]['Telefone'].values[0]
 
-        st.markdown(f"""
-            <div class="balance-card {'limit-exceeded' if divida >= limite_cli else ''}">
-                <p style="margin:0; opacity:0.8;">Dívida de {cliente_final}</p>
-                <h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1>
-                <p style="margin:0; font-size:12px;">Limite: R$ {limite_cli:.2f}</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div class="balance-card {'limit-exceeded' if divida >= limite_cli else ''}"><p style="margin:0; opacity:0.8;">Dívida de {cliente_final}</p><h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1><p style="margin:0; font-size:12px;">Limite: R$ {limite_cli:.2f}</p></div>""", unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
@@ -191,7 +185,6 @@ else:
                 st.write(f"### Registrar {st.session_state.op}")
                 if 'valor_input' not in st.session_state: st.session_state.valor_input = 0.0
                 val_final = st.number_input("Valor R$", min_value=0.0, value=st.session_state.valor_input)
-                
                 cv1, cv2, cv3 = st.columns(3)
                 with cv1: 
                     if st.form_submit_button("R$ 6,00"): 
@@ -205,7 +198,6 @@ else:
                     if st.form_submit_button("R$ 8,00"):
                         st.session_state.valor_input = 8.0
                         st.rerun()
-                
                 i_f = st.text_input("Descrição")
                 if st.form_submit_button("SALVAR"):
                     nid = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -223,12 +215,7 @@ else:
         st.write("### Histórico Recente")
         for i, row in v_c.iloc[::-1].iterrows():
             cor = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
-            st.markdown(f"""
-                <div class="item-card">
-                    <div><b>{row['Item'] if str(row['Item']) != 'nan' and row['Item'] != '' else row['Tipo']}</b><br><small>{row['Data']}</small></div>
-                    <b style="color:{cor};">R$ {row['Valor']:.2f}</b>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="item-card"><div><b>{row['Item'] if str(row['Item']) != 'nan' and row['Item'] != '' else row['Tipo']}</b><br><small>{row['Data']}</small></div><b style="color:{cor};">R$ {row['Valor']:.2f}</b></div>""", unsafe_allow_html=True)
             if st.button("🗑️", key=f"del_{row['ID']}"):
                 df_v = df_v[df_v['ID'] != row['ID']]
                 df_v.to_csv(DB_VENDAS, index=False)
