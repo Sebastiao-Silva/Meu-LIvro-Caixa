@@ -172,7 +172,6 @@ else:
             st.markdown(f"### Lançar {st.session_state.op}")
             if 'val_temp' not in st.session_state: st.session_state.val_temp = 0.0
             
-            # --- PRODUTOS EM ORDEM ALFABÉTICA ---
             produtos = {
                 "Água": 4.0, "Biscoito": 4.0, "Fruta": 4.0, "Pipoca": 7.0,
                 "Refrigerante": 6.0, "Salgado": 8.0, "Suco": 6.0, "Suco Natural": 7.0
@@ -203,20 +202,37 @@ else:
                         del st.session_state.op
                         st.rerun()
 
-        # --- WHATSAPP INTELIGENTE (DÉBITO VS CRÉDITO) ---
+        # --- 7. WHATSAPP COM QR CODE E CHAVE PIX ---
+        st.divider()
+        if os.path.exists("QRcode.jpeg"):
+            st.image("QRcode.jpeg", caption="Aponte a câmera para pagar via PIX", width=250)
+            st.code("Chave PIX: (13) 97827-5300", language="text") #
+
         if divida > 0:
+            # Texto personalizado para débito
             status_txt = f"possui um débito de R$ {divida:,.2f}"
             cor_zap = "#25D366"
+            instrucao_pix = "\n\nVocê pode pagar via PIX usando a nossa chave: (13) 97827-5300 ou solicitando o QR Code." #
         elif divida < 0:
+            # Texto personalizado para crédito
             status_txt = f"possui um crédito de R$ {abs(divida):,.2f}"
             cor_zap = "#075E54"
+            instrucao_pix = ""
         else:
             status_txt = "está com o saldo zerado"
             cor_zap = "#25D366"
+            instrucao_pix = ""
 
-        msg = f"Olá {cliente_final}, informamos que você {status_txt} no Bear Snack."
+        msg = f"Olá {cliente_final}, informamos que você {status_txt} no Bear Snack.{instrucao_pix}"
         url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
-        st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:{cor_zap}; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 ENVIAR SALDO VIA WHATSAPP</div></a>', unsafe_allow_html=True)
+        
+        st.markdown(f'''
+            <a href="{url}" target="_blank" style="text-decoration:none;">
+                <div style="background-color:{cor_zap}; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">
+                    📲 ENVIAR SALDO E CHAVE PIX
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
 
         st.write("### Histórico Recente")
         for i, row in v_c.iloc[::-1].iterrows():
