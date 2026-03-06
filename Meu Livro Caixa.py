@@ -66,7 +66,6 @@ else:
 
     df_c, df_v = load()
 
-    # Sidebar
     with st.sidebar:
         if st.button("🚪 SAIR"):
             st.session_state.logado = False
@@ -91,12 +90,14 @@ else:
     else: st.title("🐻 Bear Snack")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # NAVEGAÇÃO POR ABAS
-    tab_a, tab_f, tab_r = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
+    # --- CONTROLE DE ABAS ---
+    # Usamos o index para saber em qual aba o usuário está
+    aba_selecionada = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
     
     cliente_final, cat_final = None, None
 
-    with tab_a:
+    # ABA ALUNOS
+    with aba_selecionada[0]:
         c1, c2 = st.columns(2)
         with c1: pf = st.selectbox("Período:", ["Manhã", "Tarde"], key="fa_p")
         with c2: tf = st.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"], key="fa_t")
@@ -105,14 +106,15 @@ else:
         if sel_a != "-- Selecionar --":
             cliente_final, cat_final = sel_a, "Aluno"
         
-    with tab_f:
+    # ABA FUNCIONÁRIOS
+    with aba_selecionada[1]:
         sel_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()), key="sf_f")
         if sel_f != "-- Selecionar --":
             cliente_final, cat_final = sel_f, "Funcionário"
 
-    with tab_r:
-        # Forçamos cliente_final a ser None aqui para garantir que nada de lançamento apareça
-        cliente_final = None 
+    # ABA DEVEDORES
+    with aba_selecionada[2]:
+        # Aqui NUNCA preenchemos cliente_final, garantindo que os botões sumam
         devedores_lista = []
         total_geral = 0
         for _, r in df_c.iterrows():
@@ -127,17 +129,16 @@ else:
         dev_ord = sorted(devedores_lista, key=lambda x: x['Nome'])
         for idx, d in enumerate(dev_ord):
             if st.button(f"{d['Nome']} ({d['Cat']}) ➔ R$ {d['Divida']:,.2f}", key=f"d_btn_{idx}"):
-                st.session_state.dev_sel = d
+                st.session_state.dev_sel_relatorio = d
         
-        if 'dev_sel' in st.session_state:
-            ds = st.session_state.dev_sel
+        if 'dev_sel_relatorio' in st.session_state:
+            ds = st.session_state.dev_sel_relatorio
             st.markdown(f"""<div class="balance-card"><p style="margin:0;">{ds['Nome']} ({ds['Cat']})</p><h1 style="color:white; margin:0;">R$ {ds['Divida']:,.2f}</h1></div>""", unsafe_allow_html=True)
             if st.button("FECHAR DETALHES"):
-                del st.session_state.dev_sel
+                del st.session_state.dev_sel_relatorio
                 st.rerun()
 
-    # --- ÁREA DE LANÇAMENTO (REGRAS DE OURO) ---
-    # Só executa se houver um cliente e se NÃO estivermos na aba devedores
+    # --- ÁREA DE LANÇAMENTO (RESTAURADA PARA ALUNOS E FUNCIONÁRIOS) ---
     if cliente_final:
         v_c = df_v[(df_v['Cliente'] == cliente_final) & (df_v['Cat_Venda'] == cat_final)]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
@@ -146,33 +147,50 @@ else:
 
         st.markdown(f"""<div class="balance-card"><p style="margin:0; opacity:0.8;">Dívida de {cliente_final}</p><h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1><p style="margin:0; font-size:12px;">Limite: R$ {limite_cli:.2f}</p></div>""", unsafe_allow_html=True)
 
-        # Botões de Compra e Pagamento
-        c_c, c_p = st.columns(2)
-        with c_c:
+        col_c, col_p = st.columns(2)
+        with col_c:
             if st.button("➕ COMPRA"): st.session_state.op = "Compra"
-        with c_p:
+        with col_p:
             if st.button("💵 PAGOU"): st.session_state.op = "Pagamento"
 
         if 'op' in st.session_state:
-            with st.form("l_form"):
+            with st.form("form_lanca"):
                 st.write(f"### Registrar {st.session_state.op}")
-                val_final = st.number_input("Valor R$", min_value=0.0)
-                i_f = st.text_input("Descrição")
-                if st.form_submit_button("SALVAR"):
+                if 'val_temp' not in st.session_state: st.session_state.val_temp = 0.0
+                
+                vf = st.number_input("Valor R$", min_value=0.0, value=st.session_state.val_temp)
+                
+                # Botões de atalho restaurados
+                cv1, cv2, cv3 = st.columns(3)
+                with cv1: 
+                    if st.form_submit_button("R$ 6,00"): 
+                        st.session_state.val_temp = 6.0
+                        st.rerun()
+                with cv2:
+                    if st.form_submit_button("R$ 7,00"):
+                        st.session_state.val_temp = 7.0
+                        st.rerun()
+                with cv3:
+                    if st.form_submit_button("R$ 8,00"):
+                        st.session_state.val_temp = 8.0
+                        st.rerun()
+                
+                desc = st.text_input("Descrição (Opcional)")
+                if st.form_submit_button("SALVAR REGISTRO"):
                     nid = datetime.now().strftime("%Y%m%d%H%M%S")
                     agora = datetime.now().strftime("%d/%m - %H:%M")
-                    new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': i_f, 'Valor': val_final, 'Data': agora, 'Tipo': st.session_state.op}])
+                    new_v = pd.DataFrame([{'ID': nid, 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': desc, 'Valor': vf, 'Data': agora, 'Tipo': st.session_state.op}])
                     pd.concat([df_v, new_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
+                    st.session_state.val_temp = 0.0
                     del st.session_state.op
                     st.rerun()
 
-        # WhatsApp de cobrança
+        # WhatsApp e Histórico
         msg = f"Olá {cliente_final}, seu saldo no Bear Snack é R$ {divida:,.2f}"
         url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
         st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 COBRAR NO WHATSAPP</div></a>', unsafe_allow_html=True)
 
-        # Histórico com botão de lixeira
-        st.write("### Histórico")
+        st.write("### Histórico Recente")
         for i, row in v_c.iloc[::-1].iterrows():
             cor = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
             st.markdown(f"""<div class="item-card"><div><b>{row['Item'] if str(row['Item']) != 'nan' and row['Item'] != '' else row['Tipo']}</b><br><small>{row['Data']}</small></div><b style="color:{cor};">R$ {row['Valor']:.2f}</b></div>""", unsafe_allow_html=True)
