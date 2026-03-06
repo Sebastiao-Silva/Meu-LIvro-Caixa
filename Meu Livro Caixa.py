@@ -102,7 +102,6 @@ else:
     
     cliente_selecionado = None
 
-    # ABA ALUNOS
     with tab_a:
         col_p, col_t = st.columns(2)
         with col_p: p_f = st.selectbox("Período:", ["Manhã", "Tarde"], key="f_p")
@@ -111,12 +110,11 @@ else:
         sel_a = st.selectbox("Selecione o Aluno:", ["-- Selecionar --"] + list(df_filtro['Nome'].unique()), key="s_a")
         if sel_a != "-- Selecionar --": cliente_selecionado = sel_a
         
-    # ABA FUNCIONÁRIOS
     with tab_f:
         sel_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + list(df_c[df_c['Categoria'] == 'Funcionário']['Nome'].unique()), key="s_f")
         if sel_f != "-- Selecionar --": cliente_selecionado = sel_f
 
-    # ABA RELATÓRIO DE DEVEDORES
+    # ABA DEVEDORES COM CORREÇÃO DE CHAVE DUPLICADA
     with tab_r:
         devedores_lista = []
         total_geral = 0
@@ -130,8 +128,10 @@ else:
         st.markdown(f"""<div style="background-color:#4E3620; color:#D2B48C; padding:15px; border-radius:15px; text-align:center; margin-bottom:20px;"><small>TOTAL A RECEBER</small><br><b style="font-size:24px;">R$ {total_geral:,.2f}</b></div>""", unsafe_allow_html=True)
         
         devedores_ordenados = sorted(devedores_lista, key=lambda x: x['Nome'])
-        for d in devedores_ordenados:
-            if st.button(f"{d['Nome']} ➔ R$ {d['Divida']:,.2f}", key=f"btn_dev_{d['Nome']}"):
+        
+        # Correção aqui: usando enumerate para gerar keys únicas (index)
+        for idx, d in enumerate(devedores_ordenados):
+            if st.button(f"{d['Nome']} ➔ R$ {d['Divida']:,.2f}", key=f"btn_dev_idx_{idx}"):
                 st.session_state.devedor_selecionado = d['Nome']
         
         if 'devedor_selecionado' in st.session_state:
@@ -143,7 +143,7 @@ else:
                 del st.session_state.devedor_selecionado
                 st.rerun()
 
-    # --- ÁREA DE LANÇAMENTO (RESTAURADA PARA AS ABAS DE CLIENTES) ---
+    # ÁREA DE LANÇAMENTO
     if cliente_selecionado:
         v_c = df_v[df_v['Cliente'] == cliente_selecionado]
         divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
@@ -189,7 +189,6 @@ else:
                     del st.session_state.op
                     st.rerun()
 
-        # WhatsApp e Histórico (Só nas abas Alunos/Funcionários)
         msg = f"Olá {cliente_selecionado}, seu saldo no Bear Snack é R$ {divida:,.2f}"
         url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
         st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px;">📲 COBRAR NO WHATSAPP</div></a>', unsafe_allow_html=True)
