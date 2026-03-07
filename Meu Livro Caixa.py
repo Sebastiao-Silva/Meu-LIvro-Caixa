@@ -135,7 +135,7 @@ else:
         if st.button("📊 DEVEDORES"): st.session_state.tela_atual = "devedores"; st.rerun()
         if st.button("📄 RELATÓRIOS"): st.session_state.tela_atual = "relatorios"; st.rerun()
 
-    # --- 7. TELA DE RELATÓRIOS ---
+# --- 7. TELA DE RELATÓRIOS (COM TOTAIS NA IMPRESSÃO) ---
     elif st.session_state.tela_atual == "relatorios":
         st.markdown('<div class="btn-voltar">', unsafe_allow_html=True)
         if st.button("⬅️ VOLTAR AO MENU"): st.session_state.tela_atual = "home"; st.rerun()
@@ -152,25 +152,30 @@ else:
 
         if "Relatório Completo" in tipo:
             titulo_rel = "RELATÓRIO GERAL DE DEVEDORES"
+            total_geral = 0
             dados_html, dados_txt = [], [f"{titulo_rel}\n{'='*30}\nNOME{' '*16}SALDO\n{'-'*30}"]
             for _, r in df_c.iterrows():
                 v_cli = df_v[df_v['Cliente'] == r['Nome']]
                 saldo = v_cli[v_cli['Tipo'] == 'Compra']['Valor'].sum() - v_cli[v_cli['Tipo'] == 'Pagamento']['Valor'].sum()
                 if saldo > 0: 
+                    total_geral += saldo
                     dados_html.append(f"<tr><td>{r['Nome']}</td><td>R$ {saldo:.2f}</td></tr>")
                     dados_txt.append(f"{r['Nome'][:20]:<20} R$ {saldo:>7.2f}")
-            tabela_html = f"<table class='print-table'><tr><th>Nome</th><th>Saldo</th></tr>{''.join(dados_html)}</table>"
+            dados_txt.append(f"{'-'*30}\nTOTAL GERAL:{' '*10}R$ {total_geral:>7.2f}")
+            tabela_html = f"<table class='print-table'><tr><th>Nome</th><th>Saldo</th></tr>{''.join(dados_html)}<tr><td><b>TOTAL</b></td><td><b>R$ {total_geral:.2f}</b></td></tr></table>"
             texto_txt = "\n".join(dados_txt)
 
         elif "Devedor Completo" in tipo:
             n_sel = st.selectbox("Selecione:", sorted(df_c['Nome'].unique()))
             titulo_rel = f"HISTÓRICO: {n_sel}"
             v_c = df_v[df_v['Cliente'] == n_sel]
+            saldo_f = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
             dados_html = [f"<tr><td>{rv['Data']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_c.iterrows()]
             dados_txt = [f"{titulo_rel}\n{'='*30}\nDATA{' '*11}TIPO{' '*6}VALOR\n{'-'*30}"]
             for _, rv in v_c.iterrows():
                 dados_txt.append(f"{rv['Data'][:14]:<14} {rv['Tipo'][:8]:<8} R${rv['Valor']:>6.2f}")
-            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados_html)}</table>"
+            dados_txt.append(f"{'-'*30}\nSALDO DEVEDOR:{' '*8}R$ {saldo_f:>7.2f}")
+            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados_html)}<tr><td colspan='2'><b>SALDO ATUAL</b></td><td><b>R$ {saldo_f:.2f}</b></td></tr></table>"
             texto_txt = "\n".join(dados_txt)
 
         elif "Todos por Período" in tipo:
@@ -179,12 +184,16 @@ else:
             titulo_rel = f"GERAL: {di.strftime('%d/%m')} a {df.strftime('%d/%m')}"
             mask = (df_v['dt_obj'] >= di) & (df_v['dt_obj'] <= df)
             v_f = df_v[mask]
+            vendas_t = v_f[v_f['Tipo'] == 'Compra']['Valor'].sum()
+            pagos_t = v_f[v_f['Tipo'] == 'Pagamento']['Valor'].sum()
             dados_html = [f"<tr><td>{rv['Data']}</td><td>{rv['Cliente']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_f.iterrows()]
             dados_txt = [f"{titulo_rel}\n{'='*30}\nDATA{' '*11}CLIENTE{' '*5}VALOR\n{'-'*30}"]
             for _, rv in v_f.iterrows():
                 dados_txt.append(f"{rv['Data'][:14]:<14} {rv['Cliente'][:12]:<12} R${rv['Valor']:>6.2f}")
+            dados_txt.append(f"{'-'*30}\nTOTAL VENDAS:{' '*9}R$ {vendas_t:>7.2f}\nTOTAL PAGOS:{' '*10}R$ {pagos_t:>7.2f}")
             tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados_html)}</table>"
             texto_txt = "\n".join(dados_txt)
+            st.write(f"Vendas: R$ {vendas_t:.2f} | Pagos: R$ {pagos_t:.2f}")
 
         elif "Devedor por Período" in tipo:
             n_sel = st.selectbox("Selecione:", sorted(df_c['Nome'].unique()))
@@ -193,18 +202,19 @@ else:
             titulo_rel = f"EXTRATO {n_sel}\n{di.strftime('%d/%m')} a {df.strftime('%d/%m')}"
             mask = (df_v['Cliente'] == n_sel) & (df_v['dt_obj'] >= di) & (df_v['dt_obj'] <= df)
             v_f = df_v[mask]
+            subtotal = v_f[v_f['Tipo'] == 'Compra']['Valor'].sum() - v_f[v_f['Tipo'] == 'Pagamento']['Valor'].sum()
             dados_html = [f"<tr><td>{rv['Data']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_f.iterrows()]
             dados_txt = [f"{titulo_rel}\n{'='*30}\nDATA{' '*11}TIPO{' '*6}VALOR\n{'-'*30}"]
             for _, rv in v_f.iterrows():
                 dados_txt.append(f"{rv['Data'][:14]:<14} {rv['Tipo'][:8]:<8} R${rv['Valor']:>6.2f}")
-            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados_html)}</table>"
+            dados_txt.append(f"{'-'*30}\nSUBTOTAL PERÍODO:{' '*5}R$ {subtotal:>7.2f}")
+            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados_html)}<tr><td colspan='2'><b>SUBTOTAL</b></td><td><b>R$ {subtotal:.2f}</b></td></tr></table>"
             texto_txt = "\n".join(dados_txt)
 
         st.divider()
         st.download_button(label="📥 BAIXAR TXT PARA IMPRESSÃO", data=texto_txt, file_name=f"relatorio_bear.txt", mime="text/plain")
         st.markdown(f"<h3 style='text-align:center;'>{titulo_rel}</h3>", unsafe_allow_html=True)
         st.markdown(tabela_html, unsafe_allow_html=True)
-
     # --- 8. TELAS INTERNAS ---
     else:
         st.markdown('<div class="btn-voltar">', unsafe_allow_html=True)
@@ -281,4 +291,5 @@ else:
             st.divider()
             url = f"https://wa.me/{row_cli['Telefone']}?text=Olá {cliente_f}, seu saldo no Bear Snack é R$ {divida:,.2f}"
             st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">📲 WHATSAPP</div></a>', unsafe_allow_html=True)
+
 
