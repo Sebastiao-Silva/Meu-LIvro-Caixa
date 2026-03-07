@@ -13,14 +13,18 @@ st.markdown("""
     <style>
     .stApp { background-color: #FDF5E6; }
     
-    /* Centralização do Logo e Títulos */
-    .main-header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+    /* Centralização Absoluta do Logo no Topo */
+    [data-testid="stImage"] {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width: fit-content;
+    }
+    
+    .centered-header {
         text-align: center;
         width: 100%;
+        margin-top: -50px; /* Ajuste para subir mais o logo */
         margin-bottom: 20px;
     }
 
@@ -111,13 +115,11 @@ df_c, df_v = load_data()
 if 'logado' not in st.session_state: st.session_state.logado = False
 
 if not st.session_state.logado:
-    # Centralização do Login
-    st.markdown('<div class="main-header">', unsafe_allow_html=True)
+    # Topo centralizado no Login
     if os.path.exists("logo.png"): 
-        st.image("logo.png", width=180)
+        st.image("logo.png", width=200)
     else: 
-        st.title("🐻 BEAR SNACK")
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<h1 class="centered-header">🐻 BEAR SNACK</h1>', unsafe_allow_html=True)
     
     user = st.text_input("Usuário")
     pw = st.text_input("Senha", type="password")
@@ -170,13 +172,11 @@ else:
                 st.rerun()
 
     # --- 5. INTERFACE PRINCIPAL ---
-    # Centralização do Logo na Home
-    st.markdown('<div class="main-header">', unsafe_allow_html=True)
+    # Topo centralizado no Sistema
     if os.path.exists("logo.png"): 
-        st.image("logo.png", width=120)
+        st.image("logo.png", width=150)
     else: 
-        st.title("🐻 Bear Snack")
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<h1 class="centered-header">🐻 Bear Snack</h1>', unsafe_allow_html=True)
 
     aba_selecionada = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
     cliente_final, cat_final = None, None
@@ -258,10 +258,8 @@ else:
         # --- 7. WHATSAPP E PIX ---
         st.divider()
         if os.path.exists("QRcode.jpeg"):
-            st.markdown('<div class="main-header">', unsafe_allow_html=True)
             st.image("QRcode.jpeg", caption="Pague via PIX", width=200)
             st.code("Chave PIX: (13) 97827-5300", language="text")
-            st.markdown('</div>', unsafe_allow_html=True)
 
         if divida > 0:
             status, cor_z, pix_msg = f"débito de R$ {divida:,.2f}", "#25D366", "\n\nChave PIX: (13) 97827-5300"
