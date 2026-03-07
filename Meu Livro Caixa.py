@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- 1. CONFIGURAÇÃO E ESTILO ---
 st.set_page_config(page_title="Bear Snack Pro", layout="centered", initial_sidebar_state="collapsed")
@@ -29,7 +29,6 @@ st.markdown("""
         height: 35px !important; background-color: #D2B48C !important;
         color: #4E3620 !important; margin-bottom: 20px;
     }
-    /* Estilo para Tabela de Impressão */
     .print-table {
         width: 100%; border-collapse: collapse; background-color: white; color: black; margin-top: 10px;
     }
@@ -43,6 +42,11 @@ st.markdown("""
 DB_VENDAS = "vendas_bear_final.csv"
 DB_CLIENTES = "clientes_bear_final.csv"
 
+# --- FUNÇÃO PARA OBTER HORA DE SÃO PAULO ---
+def get_sp_time():
+    # Ajusta o horário do servidor (geralmente UTC) para São Paulo (UTC-3)
+    return datetime.utcnow() - timedelta(hours=3)
+
 # --- 2. FUNÇÕES DE DADOS ---
 def load_data():
     c = pd.read_csv(DB_CLIENTES) if os.path.exists(DB_CLIENTES) else pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria', 'Periodo', 'Turma', 'Limite'])
@@ -51,11 +55,13 @@ def load_data():
     for col in ['Categoria', 'Periodo', 'Turma', 'Limite']:
         if col not in c.columns: c[col] = 50.0 if col == 'Limite' else "N/A"
     
-    # Criar coluna de data real para filtros (converte "06/03 - 22:50" para objeto date)
     if not v.empty:
         def parse_dt(x):
-            try: return datetime.strptime(f"{x[:5]}/2026", "%d/%m/%Y").date()
-            except: return datetime.now().date()
+            try:
+                # Agora tenta ler no formato brasileiro dia/mes/ano que vamos salvar
+                return datetime.strptime(x.split(' - ')[0], "%d/%m/%Y").date()
+            except:
+                return get_sp_time().date()
         v['dt_obj'] = v['Data'].apply(parse_dt)
     else:
         v['dt_obj'] = None
@@ -144,7 +150,7 @@ else:
         if st.button("📊 DEVEDORES"): st.session_state.tela_atual = "devedores"; st.rerun()
         if st.button("📄 IMPRIMIR RELATÓRIO"): st.session_state.tela_atual = "relatorios"; st.rerun()
 
-    # --- 7. TELA DE RELATÓRIOS (COM FILTRO DE PERÍODO REAL) ---
+    # --- 7. TELA DE RELATÓRIOS ---
     elif st.session_state.tela_atual == "relatorios":
         st.markdown('<div class="btn-voltar">', unsafe_allow_html=True)
         if st.button("⬅️ VOLTAR AO MENU"): st.session_state.tela_atual = "home"; st.rerun()
@@ -159,6 +165,9 @@ else:
         
         tabela_html = ""
         titulo_rel = ""
+
+        # Usar hora de SP para o calendário padrão
+        agora_sp = get_sp_time().date()
 
         if "Relatório Completo" in tipo:
             titulo_rel = "RELATÓRIO GERAL DE DEVEDORES"
@@ -178,9 +187,9 @@ else:
 
         elif "Todos por Período" in tipo:
             c1, c2 = st.columns(2)
-            di = c1.date_input("Início", datetime.now())
-            df = c2.date_input("Fim", datetime.now())
-            titulo_rel = f"RELATÓRIO GERAL: {di.strftime('%d/%m')} a {df.strftime('%d/%m')}"
+            di = c1.date_input("Início", agora_sp)
+            df = c2.date_input("Fim", agora_sp)
+            titulo_rel = f"RELATÓRIO GERAL: {di.strftime('%d/%m/%Y')} a {df.strftime('%d/%m/%Y')}"
             mask = (df_v['dt_obj'] >= di) & (df_v['dt_obj'] <= df)
             v_filt = df_v[mask]
             dados = [f"<tr><td>{rv['Data']}</td><td>{rv['Cliente']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_filt.iterrows()]
@@ -189,9 +198,9 @@ else:
         elif "Devedor por Período" in tipo:
             n_sel = st.selectbox("Selecione o Cliente:", sorted(df_c['Nome'].unique()))
             c1, c2 = st.columns(2)
-            di = c1.date_input("De:", datetime.now())
-            df = c2.date_input("Até:", datetime.now())
-            titulo_rel = f"EXTRATO {n_sel}: {di.strftime('%d/%m')} a {df.strftime('%d/%m')}"
+            di = c1.date_input("De:", agora_sp)
+            df = c2.date_input("Até:", agora_sp)
+            titulo_rel = f"EXTRATO {n_sel}: {di.strftime('%d/%m/%Y')} a {df.strftime('%d/%m/%Y')}"
             mask = (df_v['Cliente'] == n_sel) & (df_v['dt_obj'] >= di) & (df_v['dt_obj'] <= df)
             v_filt = df_v[mask]
             dados = [f"<tr><td>{rv['Data']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_filt.iterrows()]
@@ -259,7 +268,11 @@ else:
                 with st.form("lanca"):
                     vf = st.number_input("Valor", value=st.session_state.val_temp)
                     if st.form_submit_button("✅ CONFIRMAR"):
-                        new_row = pd.DataFrame([{'ID': datetime.now().strftime("%Y%m%d%H%M%S"), 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': '', 'Valor': vf, 'Data': datetime.now().strftime("%d/%m - %H:%M"), 'Tipo': st.session_state.op}])
+                        # --- MODIFICAÇÃO DE DATA AQUI ---
+                        agora_sp = get_sp_time()
+                        data_br = agora_sp.strftime("%d/%m/%Y - %H:%M") # FORMATO DIA/MES/ANO
+                        
+                        new_row = pd.DataFrame([{'ID': agora_sp.strftime("%Y%m%d%H%M%S"), 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': '', 'Valor': vf, 'Data': data_br, 'Tipo': st.session_state.op}])
                         pd.concat([df_v, new_row], ignore_index=True).to_csv(DB_VENDAS, index=False)
                         st.session_state.val_temp = 0.0; del st.session_state.op; st.rerun()
             
