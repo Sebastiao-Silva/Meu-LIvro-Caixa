@@ -144,7 +144,7 @@ else:
         if st.button("📊 DEVEDORES"): st.session_state.tela_atual = "devedores"; st.rerun()
         if st.button("📄 IMPRIMIR RELATÓRIO"): st.session_state.tela_atual = "relatorios"; st.rerun()
 
-    # --- 7. TELA DE RELATÓRIOS (MODIFICADA) ---
+    # --- 7. TELA DE RELATÓRIOS (COM FILTRO DE PERÍODO REAL) ---
     elif st.session_state.tela_atual == "relatorios":
         st.markdown('<div class="btn-voltar">', unsafe_allow_html=True)
         if st.button("⬅️ VOLTAR AO MENU"): st.session_state.tela_atual = "home"; st.rerun()
