@@ -12,6 +12,13 @@ st.set_page_config(page_title="Bear Snack Pro", layout="centered", initial_sideb
 st.markdown("""
     <style>
     .stApp { background-color: #FDF5E6; }
+    
+    /* AJUSTE DE ALINHAMENTO DO LOGO */
+    [data-testid="stImage"] {
+        display: block;
+        margin-left: 75%; /* Este valor joga a imagem para a direita */
+    }
+    
     .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: #FDF5E6; }
     .stTabs [data-baseweb="tab"] {
         height: 45px; background-color: #D2B48C; border-radius: 10px 10px 0px 0px;
