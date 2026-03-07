@@ -41,223 +41,137 @@ DB_VENDAS = "vendas_bear_final.csv"
 DB_CLIENTES = "clientes_bear_final.csv"
 DB_ANTIGO = "Livro Caixa.db"
 
-# --- 2. FUNÇÕES DE DADOS E MIGRAÇÃO ---
-def migrar_dados_antigos():
-    # Só migra se o arquivo antigo existir e o novo de clientes AINDA NÃO existir
+# --- 2. FUNÇÕES DE DADOS ---
+def migrar_banco_sqlite():
     if os.path.exists(DB_ANTIGO) and not os.path.exists(DB_CLIENTES):
         try:
             conn = sqlite3.connect(DB_ANTIGO)
-            # Busca descrições na tabela correta do seu arquivo db
-            query = "SELECT DISTINCT description FROM cashTransaction WHERE description IS NOT NULL"
-            df_bruto = pd.read_sql_query(query, conn)
+            # Busca todas as descrições únicas
+            df_sql = pd.read_sql_query("SELECT DISTINCT description FROM cashTransaction", conn)
             conn.close()
 
-            clientes_migrados = []
-            for item in df_bruto['description']:
-                original = str(item).strip()
-                if not original or original.lower() == 'none': continue
+            importados = []
+            for desc in df_sql['description']:
+                nome_bruto = str(desc).strip()
+                if not nome_bruto or nome_bruto == 'None': continue
 
-                # Regra de Funcionários (@)
-                if original.startswith('@'):
-                    nome = original.replace('@', '').strip()
-                    clientes_migrados.append({
-                        'Nome': nome, 'Telefone': '', 'Categoria': 'Funcionário', 
-                        'Periodo': 'N/A', 'Turma': 'N/A', 'Limite': 100.0
-                    })
+                # Identifica Funcionário
+                if nome_bruto.startswith('@'):
+                    nome_limpo = nome_bruto.replace('@', '').strip()
+                    importados.append({'Nome': nome_limpo, 'Categoria': 'Funcionário', 'Periodo': 'N/A', 'Turma': 'N/A', 'Limite': 100.0, 'Telefone': ''})
                 
-                # Regra de Alunos (Horários)
+                # Identifica Aluno (procura horário no texto)
                 else:
-                    hora_match = re.search(r'(\d{2}:\d{2})', original)
+                    hora_match = re.search(r'(\d{2}:\d{2})', nome_bruto)
                     if hora_match:
                         hora = hora_match.group(1)
-                        nome = original.replace(hora, '').strip()
+                        # Remove o horário e termos como "Bebe" para pegar o nome
+                        nome_limpo = nome_bruto.replace(hora, '').replace('bebe', '').replace('Bebe', '').replace('(', '').replace(')', '').strip()
                         
-                        # Lógica de períodos conforme solicitado
-                        periodo, turma = "Manhã", "1ª Turma"
-                        h_num = int(hora.split(':')[0])
+                        periodo = "Manhã"
+                        h_int = int(hora.split(':')[0])
+                        if h_int >= 12: periodo = "Tarde"
                         
-                        if hora in ['08:40', '09:00']: periodo, turma = "Manhã", "1ª Turma"
-                        elif hora == '09:30': periodo, turma = "Manhã", "2ª Turma"
-                        elif hora == '10:00': periodo, turma = "Manhã", "3ª Turma"
-                        elif h_num >= 15: periodo, turma = "Tarde", "1ª Turma"
-                        
-                        clientes_migrados.append({
-                            'Nome': nome, 'Telefone': '', 'Categoria': 'Aluno', 
-                            'Periodo': periodo, 'Turma': turma, 'Limite': 50.0
-                        })
-            
-            if clientes_migrados:
-                # Salva garantindo que não há nomes duplicados
-                df_final = pd.DataFrame(clientes_migrados).drop_duplicates(subset=['Nome'])
+                        importados.append({'Nome': nome_limpo, 'Categoria': 'Aluno', 'Periodo': periodo, 'Turma': '1ª Turma', 'Limite': 50.0, 'Telefone': ''})
+
+            if importados:
+                df_final = pd.DataFrame(importados).drop_duplicates(subset=['Nome'])
                 df_final.to_csv(DB_CLIENTES, index=False, encoding='utf-8-sig')
                 return True
-        except:
-            return False
+        except: return False
     return False
 
-def load_data():
-    migrar_dados_antigos()
-    if os.path.exists(DB_CLIENTES): 
-        c = pd.read_csv(DB_CLIENTES)
-    else: 
-        c = pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria', 'Periodo', 'Turma', 'Limite'])
-    
-    if os.path.exists(DB_VENDAS): 
-        v = pd.read_csv(DB_VENDAS)
-    else: 
-        v = pd.DataFrame(columns=['ID', 'Cliente', 'Cat_Venda', 'Item', 'Valor', 'Data', 'Tipo'])
-    
-    # Garantia de colunas essenciais
-    for col in ['Categoria', 'Periodo', 'Turma', 'Limite']:
-        if col not in c.columns: 
-            c[col] = 50.0 if col == 'Limite' else "N/A"
+def carregar_dados():
+    migrar_banco_sqlite()
+    c = pd.read_csv(DB_CLIENTES) if os.path.exists(DB_CLIENTES) else pd.DataFrame(columns=['Nome', 'Categoria', 'Periodo', 'Turma', 'Limite', 'Telefone'])
+    v = pd.read_csv(DB_VENDAS) if os.path.exists(DB_VENDAS) else pd.DataFrame(columns=['ID', 'Cliente', 'Item', 'Valor', 'Data', 'Tipo'])
     return c, v
 
-df_c, df_v = load_data()
+df_c, df_v = carregar_dados()
 
 # --- 3. LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
+
 if not st.session_state.logado:
-    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-    if os.path.exists("logo.png"): st.image("logo.png", width=180)
-    else: st.title("🐻 BEAR SNACK")
-    st.markdown("</div>", unsafe_allow_html=True)
-    user = st.text_input("Usuário")
-    pw = st.text_input("Senha", type="password")
-    if st.button("ACESSAR SISTEMA"):
-        if user == "admin" and pw == "bear123":
+    st.markdown("<h2 style='text-align:center;'>🐻 BEAR SNACK LOGIN</h2>", unsafe_allow_html=True)
+    u = st.text_input("Usuário")
+    p = st.text_input("Senha", type="password")
+    if st.button("ACESSAR"):
+        if u == "admin" and p == "bear123":
             st.session_state.logado = True
             st.rerun()
         else: st.error("Dados incorretos")
 else:
-    # --- 4. SIDEBAR (GESTÃO) ---
+    # --- 4. INTERFACE ---
+    st.markdown("<h1 style='text-align:center;'>🐻 Bear Snack</h1>", unsafe_allow_html=True)
+    
+    # Sidebar para gerir novos clientes ou sair
     with st.sidebar:
         if st.button("🚪 SAIR"):
             st.session_state.logado = False
             st.rerun()
         st.divider()
-        st.subheader("👤 Gerenciar Cliente")
-        
-        lista_clientes = ["-- Novo Cadastro --"] + sorted(df_c['Nome'].unique().tolist())
-        cliente_para_editar = st.selectbox("🔍 Buscar/Editar Cliente:", options=lista_clientes)
+        st.write("### Novo Cadastro")
+        novo_n = st.text_input("Nome")
+        novo_cat = st.selectbox("Tipo", ["Aluno", "Funcionário"])
+        if st.button("Salvar"):
+            nova_linha = pd.DataFrame([{'Nome': novo_n, 'Categoria': novo_cat, 'Periodo': 'Manhã', 'Turma': '1ª Turma', 'Limite': 50.0, 'Telefone': ''}])
+            df_c = pd.concat([df_c, nova_linha], ignore_index=True)
+            df_c.to_csv(DB_CLIENTES, index=False)
+            st.rerun()
 
-        val_n, val_t, val_cat, val_lim = "", "", "Aluno", 50.0
-        val_p, val_tur = "Manhã", "1ª Turma"
-        editando = False
+    # ABAS PRINCIPAIS
+    abas = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
+    cliente_selecionado = None
 
-        if cliente_para_editar != "-- Novo Cadastro --":
-            editando = True
-            dados = df_c[df_c['Nome'] == cliente_para_editar].iloc[0]
-            val_n, val_t, val_cat, val_lim = dados['Nome'], str(dados['Telefone']), dados['Categoria'], float(dados['Limite'])
-            val_p, val_tur = str(dados['Periodo']), str(dados['Turma'])
+    with abas[0]: # ALUNOS
+        per = st.selectbox("Período", ["Manhã", "Tarde"])
+        filtro_a = df_c[(df_c['Categoria'] == 'Aluno') & (df_c['Periodo'] == per)]
+        sel_a = st.selectbox("Escolha o Aluno", ["--"] + sorted(filtro_a['Nome'].unique().tolist()))
+        if sel_a != "--": cliente_selecionado = sel_a
 
-        n = st.text_input("Nome", value=val_n)
-        t = st.text_input("WhatsApp", value=val_t)
-        cat = st.selectbox("Tipo:", ["Aluno", "Funcionário"], index=0 if val_cat == "Aluno" else 1)
-        lim = st.number_input("Limite R$", value=val_lim)
-        
-        p, tur = "N/A", "N/A"
-        if cat == "Aluno":
-            p_opts = ["Manhã", "Tarde"]
-            t_opts = ["1ª Turma", "2ª Turma", "3ª Turma"]
-            idx_p = p_opts.index(val_p) if val_p in p_opts else 0
-            idx_t = t_opts.index(val_tur) if val_tur in t_opts else 0
-            p = st.selectbox("Período:", p_opts, index=idx_p)
-            tur = st.selectbox("Turma:", t_opts, index=idx_t)
+    with abas[1]: # FUNCIONÁRIOS
+        filtro_f = df_c[df_c['Categoria'] == 'Funcionário']
+        sel_f = st.selectbox("Escolha o Funcionário", ["--"] + sorted(filtro_f['Nome'].unique().tolist()))
+        if sel_f != "--": cliente_selecionado = sel_f
 
-        if st.button("SALVAR ALTERAÇÕES" if editando else "CADASTRAR"):
-            if n:
-                df_temp, _ = load_data()
-                if editando: df_temp = df_temp[df_temp['Nome'] != cliente_para_editar]
-                new_row = pd.DataFrame([{'Nome': n, 'Telefone': t, 'Categoria': cat, 'Periodo': p, 'Turma': tur, 'Limite': lim}])
-                pd.concat([df_temp, new_row], ignore_index=True).to_csv(DB_CLIENTES, index=False)
-                st.success("Salvo!")
-                st.rerun()
-
-    # --- 5. INTERFACE PRINCIPAL ---
-    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-    if os.path.exists("logo.png"): st.image("logo.png", width=100)
-    else: st.title("🐻 Bear Snack")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    aba_selecionada = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
-    cliente_final, cat_final = None, None
-
-    with aba_selecionada[0]:
-        c1, c2 = st.columns(2)
-        with c1: pf = st.selectbox("Período:", ["Manhã", "Tarde"], key="fa_p")
-        with c2: tf = st.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"], key="fa_t")
-        df_fa = df_c[(df_c['Categoria'] == 'Aluno') & (df_c['Periodo'] == pf) & (df_c['Turma'] == tf)]
-        sel_a = st.selectbox("Selecione o Aluno:", ["-- Selecionar --"] + sorted(df_fa['Nome'].unique().tolist()), key="sa_a")
-        if sel_a != "-- Selecionar --": cliente_final, cat_final = sel_a, "Aluno"
-        
-    with aba_selecionada[1]:
-        df_func = df_c[df_c['Categoria'] == 'Funcionário']
-        sel_f = st.selectbox("Selecione o Funcionário:", ["-- Selecionar --"] + sorted(df_func['Nome'].unique().tolist()), key="sf_f")
-        if sel_f != "-- Selecionar --": cliente_final, cat_final = sel_f, "Funcionário"
-
-    with aba_selecionada[2]:
-        total_a_receber = 0
-        devedores = []
+    with abas[2]: # DEVEDORES
+        st.write("### Lista de Saldos")
         for _, r in df_c.iterrows():
-            v_cli = df_v[(df_v['Cliente'] == r['Nome'])]
+            v_cli = df_v[df_v['Cliente'] == r['Nome']]
             saldo = v_cli[v_cli['Tipo'] == 'Compra']['Valor'].sum() - v_cli[v_cli['Tipo'] == 'Pagamento']['Valor'].sum()
             if saldo > 0:
-                devedores.append({'Nome': r['Nome'], 'Divida': saldo, 'Cat': r['Categoria']})
-                total_a_receber += saldo
+                st.warning(f"{r['Nome']}: R$ {saldo:.2f}")
+
+    # --- 5. OPERAÇÕES ---
+    if cliente_selecionado:
+        v_cli = df_v[df_v['Cliente'] == cliente_selecionado]
+        saldo = v_cli[v_cli['Tipo'] == 'Compra']['Valor'].sum() - v_cli[v_cli['Tipo'] == 'Pagamento']['Valor'].sum()
         
-        st.markdown(f'<div style="background-color:#4E3620; color:#D2B48C; padding:15px; border-radius:15px; text-align:center; margin-bottom:20px;"><small>TOTAL A RECEBER</small><br><b style="font-size:24px;">R$ {total_a_receber:,.2f}</b></div>', unsafe_allow_html=True)
-        for d in sorted(devedores, key=lambda x: x['Nome']):
-            if st.button(f"{d['Nome']} ({d['Cat']}) ➔ R$ {d['Divida']:,.2f}", key=f"dev_{d['Nome']}"):
-                cliente_final, cat_final = d['Nome'], d['Cat']
+        st.markdown(f'<div class="balance-card"><h2>{cliente_selecionado}</h2><h1>R$ {saldo:,.2f}</h1></div>', unsafe_allow_html=True)
 
-    # --- 6. LANÇAMENTOS E PRODUTOS ---
-    if cliente_final:
-        v_c = df_v[df_v['Cliente'] == cliente_final]
-        divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
-        row_cli = df_c[df_c['Nome'] == cliente_final].iloc[0]
-        limite_cli, tel = row_cli['Limite'], str(row_cli['Telefone'])
+        if 'v_soma' not in st.session_state: st.session_state.v_soma = 0.0
+        
+        # Botões de produtos rápidos
+        st.write("### Lançar Compra")
+        c1, c2, c3 = st.columns(3)
+        precos = {"Salgado": 8.0, "Suco": 6.0, "Refri": 6.0, "Pipoca": 7.0, "Água": 4.0, "Biscoito": 4.0}
+        for i, (item, valor) in enumerate(precos.items()):
+            col = [c1, c2, c3][i % 3]
+            if col.button(f"{item}\nR${valor}"):
+                st.session_state.v_soma += valor
+                st.rerun()
 
-        st.markdown(f"""<div class="balance-card"><p style="margin:0;">Saldo de {cliente_final}</p><h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1><p style="margin:0; font-size:12px;">Limite: R$ {limite_cli:.2f}</p></div>""", unsafe_allow_html=True)
-
-        col_c, col_p = st.columns(2)
-        with col_c:
-            if st.button("➕ COMPRA"): st.session_state.op = "Compra"
-        with col_p:
-            if st.button("💵 PAGOU"): st.session_state.op = "Pagamento"
-
-        if 'op' in st.session_state:
-            if 'val_temp' not in st.session_state: st.session_state.val_temp = 0.0
-            st.subheader(f"Lançar {st.session_state.op}")
-            
-            produtos = {"Água": 4.0, "Biscoito": 4.0, "Fruta": 4.0, "Pipoca": 7.0, "Refrigerante": 6.0, "Salgado": 8.0, "Suco": 6.0, "Suco Natural": 7.0}
-            
-            cols = st.columns(2)
-            for i, (prod, preco) in enumerate(produtos.items()):
-                if cols[i%2].button(f"{prod} (R$ {preco:.2f})", key=f"btn_{prod}"):
-                    st.session_state.val_temp += preco
-                    st.rerun()
-
-            with st.form("lanca_venda"):
-                vf = st.number_input("Valor Final R$", min_value=0.0, value=st.session_state.val_temp)
-                desc = st.text_input("Observação")
-                c_z, c_s = st.columns(2)
-                if c_z.form_submit_button("🧹 LIMPAR"):
-                    st.session_state.val_temp = 0.0
-                    st.rerun()
-                if c_s.form_submit_button("✅ CONFIRMAR"):
-                    if vf > 0:
-                        nid = datetime.now().strftime("%Y%m%d%H%M%S")
-                        agora = datetime.now().strftime("%d/%m - %H:%M")
-                        nova_venda = pd.DataFrame([{'ID': nid, 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': desc if desc else st.session_state.op, 'Valor': vf, 'Data': agora, 'Tipo': st.session_state.op}])
-                        df_v_nova = pd.concat([df_v, nova_venda], ignore_index=True)
-                        df_v_nova.to_csv(DB_VENDAS, index=False)
-                        st.session_state.val_temp = 0.0
-                        del st.session_state.op
-                        st.rerun()
-
-        # --- 7. HISTÓRICO ---
-        st.write("### Histórico")
-        for i, row in v_c.iloc[::-1].iterrows():
-            cor_hist = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
-            st.markdown(f'<div class="item-card"><div><b>{row["Item"]}</b><br><small>{row["Data"]}</small></div><b style="color:{cor_hist};">R$ {row["Valor"]:.2f}</b></div>', unsafe_allow_html=True)
+        with st.form("form_lanca"):
+            v_total = st.number_input("Valor Final", value=st.session_state.v_soma)
+            tipo = st.radio("Tipo de Lançamento", ["Compra", "Pagamento"])
+            if st.form_submit_button("CONFIRMAR"):
+                nova_v = pd.DataFrame([{
+                    'ID': datetime.now().strftime("%Y%m%d%H%M%S"),
+                    'Cliente': cliente_selecionado, 'Item': tipo,
+                    'Valor': v_total, 'Data': datetime.now().strftime("%d/%m %H:%M"), 'Tipo': tipo
+                }])
+                pd.concat([df_v, nova_v], ignore_index=True).to_csv(DB_VENDAS, index=False)
+                st.session_state.v_soma = 0.0
+                st.success("Salvo com sucesso!")
+                st.rerun()
