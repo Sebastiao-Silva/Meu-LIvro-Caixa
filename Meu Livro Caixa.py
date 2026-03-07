@@ -257,9 +257,9 @@ else:
                 # --- BOTÕES DE VALORES FIXOS (RESTAURADOS) ---
                 st.write("Valores Rápidos:")
                 cv1, cv2, cv3 = st.columns(3)
-                if cv1.button("R$ 6,00"): st.session_state.val_temp += 6.0; st.rerun()
-                if cv2.button("R$ 7,00"): st.session_state.val_temp += 7.0; st.rerun()
-                if cv3.button("R$ 8,00"): st.session_state.val_temp += 8.0; st.rerun()
+                if cv1.button("Fruta R$ 4,00"): st.session_state.val_temp += 4.0; st.rerun()
+                if cv2.button("Suco Natural R$ 7,00"): st.session_state.val_temp += 7.0; st.rerun()
+                if cv3.button("Bolo de Pote R$ 8,00"): st.session_state.val_temp += 8.0; st.rerun()
 
                 # --- BOTÕES DE ITENS ---
                 produtos = {"Água": 4.0, "Salgado": 8.0, "Suco": 6.0, "Pipoca": 7.0, "Biscoito": 4.0, "Refri": 6.0}
@@ -281,3 +281,4 @@ else:
             st.divider()
             url = f"https://wa.me/{row_cli['Telefone']}?text=Olá {cliente_f}, seu saldo no Bear Snack é R$ {divida:,.2f}"
             st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">📲 WHATSAPP</div></a>', unsafe_allow_html=True)
+
