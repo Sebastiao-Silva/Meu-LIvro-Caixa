@@ -12,23 +12,38 @@ st.set_page_config(page_title="Bear Snack Pro", layout="centered", initial_sideb
 st.markdown("""
     <style>
     .stApp { background-color: #FDF5E6; }
+    
+    /* Centralização do Logo e Títulos */
+    .main-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+
     .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: #FDF5E6; }
     .stTabs [data-baseweb="tab"] {
         height: 45px; background-color: #D2B48C; border-radius: 10px 10px 0px 0px;
         color: #4E3620; font-weight: bold; padding: 0px 15px; font-size: 12px;
     }
     .stTabs [aria-selected="true"] { background-color: #4E3620 !important; color: #D2B48C !important; }
+    
     .balance-card {
         background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
         color: white; padding: 20px; border-radius: 20px;
         text-align: center; margin-bottom: 15px; border: 2px solid #D2B48C;
     }
+    
     .stButton > button {
         width: 100%; height: 50px !important; border-radius: 12px !important;
         background-color: #4E3620 !important; color: #D2B48C !important;
         font-weight: bold !important; border: 1px solid #D2B48C !important;
         font-size: 14px !important;
     }
+    
     .item-card {
         background: white; padding: 12px; border-radius: 12px; margin-bottom: 8px;
         display: flex; justify-content: space-between; align-items: center;
@@ -55,12 +70,9 @@ def migrar_dados_antigos():
                 original = str(item).strip()
                 if not original: continue
 
-                # Funcionários (@)
                 if original.startswith('@'):
                     nome = original.replace('@', '').strip()
                     clientes_migrados.append({'Nome': nome, 'Telefone': '', 'Categoria': 'Funcionário', 'Periodo': 'N/A', 'Turma': 'N/A', 'Limite': 100.0})
-                
-                # Alunos (Horários)
                 else:
                     hora_match = re.search(r'(\d{2}:\d{2})', original)
                     if hora_match:
@@ -89,7 +101,6 @@ def load_data():
     if os.path.exists(DB_VENDAS): v = pd.read_csv(DB_VENDAS)
     else: v = pd.DataFrame(columns=['ID', 'Cliente', 'Cat_Venda', 'Item', 'Valor', 'Data', 'Tipo'])
     
-    # Garantia de integridade
     for col in ['Categoria', 'Periodo', 'Turma', 'Limite']:
         if col not in c.columns: c[col] = 50.0 if col == 'Limite' else "N/A"
     return c, v
@@ -98,11 +109,16 @@ df_c, df_v = load_data()
 
 # --- 3. LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
+
 if not st.session_state.logado:
-    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-    if os.path.exists("logo.png"): st.image("logo.png", width=180)
-    else: st.title("🐻 BEAR SNACK")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Centralização do Login
+    st.markdown('<div class="main-header">', unsafe_allow_html=True)
+    if os.path.exists("logo.png"): 
+        st.image("logo.png", width=180)
+    else: 
+        st.title("🐻 BEAR SNACK")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     user = st.text_input("Usuário")
     pw = st.text_input("Senha", type="password")
     if st.button("ACESSAR SISTEMA"):
@@ -154,10 +170,13 @@ else:
                 st.rerun()
 
     # --- 5. INTERFACE PRINCIPAL ---
-    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-    if os.path.exists("logo.png"): st.image("logo.png", width=100)
-    else: st.title("🐻 Bear Snack")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Centralização do Logo na Home
+    st.markdown('<div class="main-header">', unsafe_allow_html=True)
+    if os.path.exists("logo.png"): 
+        st.image("logo.png", width=120)
+    else: 
+        st.title("🐻 Bear Snack")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     aba_selecionada = st.tabs(["🎓 ALUNOS", "💼 FUNCIONÁRIOS", "📊 DEVEDORES"])
     cliente_final, cat_final = None, None
@@ -239,8 +258,10 @@ else:
         # --- 7. WHATSAPP E PIX ---
         st.divider()
         if os.path.exists("QRcode.jpeg"):
+            st.markdown('<div class="main-header">', unsafe_allow_html=True)
             st.image("QRcode.jpeg", caption="Pague via PIX", width=200)
             st.code("Chave PIX: (13) 97827-5300", language="text")
+            st.markdown('</div>', unsafe_allow_html=True)
 
         if divida > 0:
             status, cor_z, pix_msg = f"débito de R$ {divida:,.2f}", "#25D366", "\n\nChave PIX: (13) 97827-5300"
