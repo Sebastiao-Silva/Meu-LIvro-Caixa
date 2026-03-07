@@ -12,7 +12,6 @@ st.set_page_config(page_title="Bear Snack Pro", layout="centered", initial_sideb
 st.markdown("""
     <style>
     .stApp { background-color: #FDF5E6; }
-    
     .balance-card {
         background: linear-gradient(135deg, #B03020 0%, #4E3620 100%);
         color: white; padding: 20px; border-radius: 20px;
@@ -38,7 +37,6 @@ st.markdown("""
 
 DB_VENDAS = "vendas_bear_final.csv"
 DB_CLIENTES = "clientes_bear_final.csv"
-DB_ANTIGO = "Livro Caixa.db"
 
 # --- 2. FUNÇÕES DE DADOS ---
 def load_data():
@@ -73,19 +71,47 @@ if not st.session_state.logado:
             st.rerun()
         else: st.error("Dados incorretos")
 else:
-    # --- SIDEBAR (GESTÃO) ---
+    # --- 5. SIDEBAR (CADASTRO RESTAURADO) ---
     with st.sidebar:
         if st.button("🚪 SAIR"):
             st.session_state.logado = False
             st.rerun()
         st.divider()
         st.subheader("👤 Gerenciar Cliente")
-        lista_clientes_gestao = ["-- Novo Cadastro --"] + sorted(df_c['Nome'].unique().tolist())
-        cliente_para_editar = st.selectbox("🔍 Buscar/Editar:", options=lista_clientes_gestao)
         
-        # (Lógica de cadastro resumida para a sidebar)
-        if st.button("IR PARA CADASTRO COMPLETO"):
-            st.info("Função de cadastro ativo na sidebar.")
+        lista_clientes = ["-- Novo Cadastro --"] + sorted(df_c['Nome'].unique().tolist())
+        cliente_para_editar = st.selectbox("🔍 Buscar/Editar Cliente:", options=lista_clientes)
+
+        val_n, val_t, val_cat, val_lim = "", "", "Aluno", 50.0
+        val_p, val_tur = "Manhã", "1ª Turma"
+        editando = False
+
+        if cliente_para_editar != "-- Novo Cadastro --":
+            editando = True
+            dados = df_c[df_c['Nome'] == cliente_para_editar].iloc[0]
+            val_n, val_t, val_cat, val_lim = dados['Nome'], str(dados['Telefone']), dados['Categoria'], float(dados['Limite'])
+            val_p, val_tur = dados['Periodo'], dados['Turma']
+
+        n = st.text_input("Nome", value=val_n)
+        t = st.text_input("WhatsApp (DDD+Número)", value=val_t)
+        cat = st.selectbox("Tipo:", ["Aluno", "Funcionário"], index=0 if val_cat == "Aluno" else 1)
+        lim = st.number_input("Limite R$", value=val_lim)
+        
+        p, tur = "N/A", "N/A"
+        if cat == "Aluno":
+            idx_p = ["Manhã", "Tarde"].index(val_p) if val_p in ["Manhã", "Tarde"] else 0
+            idx_t = ["1ª Turma", "2ª Turma", "3ª Turma"].index(val_tur) if val_tur in ["1ª Turma", "2ª Turma", "3ª Turma"] else 0
+            p = st.selectbox("Período:", ["Manhã", "Tarde"], index=idx_p)
+            tur = st.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"], index=idx_t)
+
+        if st.button("SALVAR ALTERAÇÕES" if editando else "CADASTRAR"):
+            if n:
+                df_temp, _ = load_data()
+                if editando: df_temp = df_temp[df_temp['Nome'] != cliente_para_editar]
+                new_row = pd.DataFrame([{'Nome': n, 'Telefone': t, 'Categoria': cat, 'Periodo': p, 'Turma': tur, 'Limite': lim}])
+                pd.concat([df_temp, new_row], ignore_index=True).to_csv(DB_CLIENTES, index=False)
+                st.success("Salvo!")
+                st.rerun()
 
     # --- LOGO TOPO ---
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
@@ -93,11 +119,9 @@ else:
     else: st.title("🐻 Bear Snack")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- TELA HOME (MENU PRINCIPAL) ---
+    # --- 6. TELA HOME (MENU + BUSCA POR DIGITAÇÃO) ---
     if st.session_state.tela_atual == "home":
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        # BUSCA RÁPIDA POR DIGITAÇÃO
         st.write("🔍 **Buscar Cliente (digite o nome):**")
         nome_busca = st.text_input("", placeholder="Digite para buscar...", label_visibility="collapsed").strip()
 
@@ -123,12 +147,13 @@ else:
             st.session_state.tela_atual = "devedores"
             st.rerun()
 
-    # --- TELAS INTERNAS ---
+    # --- 7. TELAS INTERNAS ---
     else:
         st.markdown('<div class="btn-voltar">', unsafe_allow_html=True)
         if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.tela_atual = "home"
             st.session_state.cliente_selecionado = None
+            if 'op' in st.session_state: del st.session_state.op
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -162,7 +187,6 @@ else:
             for d in sorted(devedores, key=lambda x: x['Nome']):
                 if st.button(f"{d['Nome']} ({d['Cat']}) ➔ R$ {d['Divida']:,.2f}", key=f"dev_{d['Nome']}"):
                     st.session_state.cliente_selecionado = (d['Nome'], d['Cat'])
-                    st.rerun()
 
         # --- ÁREA DE LANÇAMENTOS (VISÍVEL SE CLIENTE SELECIONADO) ---
         if st.session_state.cliente_selecionado:
@@ -193,7 +217,11 @@ else:
                 with st.form("lanca_venda"):
                     vf = st.number_input("Valor Final R$", min_value=0.0, value=st.session_state.val_temp)
                     desc = st.text_input("Observação")
-                    if st.form_submit_button("✅ CONFIRMAR"):
+                    col_form1, col_form2 = st.columns(2)
+                    if col_form1.form_submit_button("🧹 LIMPAR"):
+                        st.session_state.val_temp = 0.0
+                        st.rerun()
+                    if col_form2.form_submit_button("✅ CONFIRMAR"):
                         if vf > 0:
                             _, df_v_up = load_data()
                             nid = datetime.now().strftime("%Y%m%d%H%M%S")
