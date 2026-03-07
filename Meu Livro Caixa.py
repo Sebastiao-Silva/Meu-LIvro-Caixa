@@ -44,17 +44,22 @@ DB_ANTIGO = "Livro Caixa.db"
 def load_data():
     if os.path.exists(DB_CLIENTES): c = pd.read_csv(DB_CLIENTES)
     else: c = pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria', 'Periodo', 'Turma', 'Limite'])
+    
     if os.path.exists(DB_VENDAS): v = pd.read_csv(DB_VENDAS)
     else: v = pd.DataFrame(columns=['ID', 'Cliente', 'Cat_Venda', 'Item', 'Valor', 'Data', 'Tipo'])
+    
+    for col in ['Categoria', 'Periodo', 'Turma', 'Limite']:
+        if col not in c.columns: c[col] = 50.0 if col == 'Limite' else "N/A"
     return c, v
 
 df_c, df_v = load_data()
 
-# --- 3. LOGIN E ESTADO ---
+# --- 3. ESTADO DE NAVEGAÇÃO ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if 'tela_atual' not in st.session_state: st.session_state.tela_atual = "home"
 if 'cliente_selecionado' not in st.session_state: st.session_state.cliente_selecionado = None
 
+# --- 4. LOGIN ---
 if not st.session_state.logado:
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
     if os.path.exists("logo.png"): st.image("logo.png", width=180)
@@ -76,30 +81,36 @@ else:
         st.divider()
         st.subheader("👤 Gerenciar Cliente")
         lista_clientes_gestao = ["-- Novo Cadastro --"] + sorted(df_c['Nome'].unique().tolist())
-        cliente_para_editar = st.selectbox("🔍 Editar Cliente:", options=lista_clientes_gestao)
-        # (Lógica de cadastro/edição simplificada para manter o foco na navegação)
-        n = st.text_input("Nome")
-        if st.button("SALVAR"):
-            st.success("Salvo!") # Lógica de salvamento mantida conforme o original
+        cliente_para_editar = st.selectbox("🔍 Buscar/Editar:", options=lista_clientes_gestao)
+        
+        # (Lógica de cadastro resumida para a sidebar)
+        if st.button("IR PARA CADASTRO COMPLETO"):
+            st.info("Função de cadastro ativo na sidebar.")
 
-    # --- CABEÇALHO ---
+    # --- LOGO TOPO ---
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
     if os.path.exists("logo.png"): st.image("logo.png", width=100)
     else: st.title("🐻 Bear Snack")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- TELA HOME ---
+    # --- TELA HOME (MENU PRINCIPAL) ---
     if st.session_state.tela_atual == "home":
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # BUSCA RÁPIDA
-        st.write("🔍 **Busca Rápida de Cliente:**")
-        busca = st.selectbox("", ["-- Digite o nome --"] + sorted(df_c['Nome'].unique().tolist()), label_visibility="collapsed")
-        if busca != "-- Digite o nome --":
-            dados_busca = df_c[df_c['Nome'] == busca].iloc[0]
-            st.session_state.cliente_selecionado = (busca, dados_busca['Categoria'])
-            st.session_state.tela_atual = "vendas" # Vai para uma tela de vendas direta
-            st.rerun()
+        # BUSCA RÁPIDA POR DIGITAÇÃO
+        st.write("🔍 **Buscar Cliente (digite o nome):**")
+        nome_busca = st.text_input("", placeholder="Digite para buscar...", label_visibility="collapsed").strip()
+
+        if nome_busca:
+            matches = df_c[df_c['Nome'].str.contains(nome_busca, case=False, na=False)]
+            if not matches.empty:
+                for _, row in matches.head(3).iterrows():
+                    if st.button(f"✅ Atender: {row['Nome']} ({row['Categoria']})", key=f"fast_{row['Nome']}"):
+                        st.session_state.cliente_selecionado = (row['Nome'], row['Categoria'])
+                        st.session_state.tela_atual = "vendas"
+                        st.rerun()
+            else:
+                st.warning("Nenhum cliente encontrado.")
 
         st.divider()
         if st.button("🎓 ALUNOS"):
@@ -112,7 +123,7 @@ else:
             st.session_state.tela_atual = "devedores"
             st.rerun()
 
-    # --- TELAS DE SELEÇÃO ---
+    # --- TELAS INTERNAS ---
     else:
         st.markdown('<div class="btn-voltar">', unsafe_allow_html=True)
         if st.button("⬅️ VOLTAR AO MENU"):
@@ -139,27 +150,73 @@ else:
 
         elif st.session_state.tela_atual == "devedores":
             st.subheader("📊 Relatório de Devedores")
-            # (Lógica de devedores mantida do original)
+            total_a_receber = 0
+            devedores = []
             for _, r in df_c.iterrows():
-                # ... exibição de botões de devedores ...
-                pass
+                v_cli = df_v[(df_v['Cliente'] == r['Nome']) & (df_v['Cat_Venda'] == r['Categoria'])]
+                saldo = v_cli[v_cli['Tipo'] == 'Compra']['Valor'].sum() - v_cli[v_cli['Tipo'] == 'Pagamento']['Valor'].sum()
+                if saldo > 0:
+                    devedores.append({'Nome': r['Nome'], 'Divida': saldo, 'Cat': r['Categoria']})
+                    total_a_receber += saldo
+            st.markdown(f'<div class="balance-card"><small>TOTAL A RECEBER</small><br><b style="font-size:24px;">R$ {total_a_receber:,.2f}</b></div>', unsafe_allow_html=True)
+            for d in sorted(devedores, key=lambda x: x['Nome']):
+                if st.button(f"{d['Nome']} ({d['Cat']}) ➔ R$ {d['Divida']:,.2f}", key=f"dev_{d['Nome']}"):
+                    st.session_state.cliente_selecionado = (d['Nome'], d['Cat'])
+                    st.rerun()
 
-        # --- ÁREA DE VENDAS / LANÇAMENTOS ---
-        # Aparece se um cliente for selecionado (pela busca ou pelas telas de alunos/func)
+        # --- ÁREA DE LANÇAMENTOS (VISÍVEL SE CLIENTE SELECIONADO) ---
         if st.session_state.cliente_selecionado:
             cliente_final, cat_final = st.session_state.cliente_selecionado
-            
-            # Repete a lógica de saldo, botões de compra/pagamento e histórico aqui
-            # (Mantido conforme seu código original para garantir o funcionamento)
-            st.info(f"Atendimento: **{cliente_final}** ({cat_final})")
-            
             v_c = df_v[(df_v['Cliente'] == cliente_final) & (df_v['Cat_Venda'] == cat_final)]
             divida = v_c[v_c['Tipo'] == 'Compra']['Valor'].sum() - v_c[v_c['Tipo'] == 'Pagamento']['Valor'].sum()
-            
-            st.markdown(f'<div class="balance-card"><h1>R$ {divida:,.2f}</h1></div>', unsafe_allow_html=True)
-            
+            row_cli = df_c[(df_c['Nome'] == cliente_final) & (df_c['Categoria'] == cat_final)].iloc[0]
+            limite_cli, tel = row_cli['Limite'], str(row_cli['Telefone'])
+
+            st.markdown(f"""<div class="balance-card"><p style="margin:0;">Saldo de {cliente_final}</p><h1 style="color:white; margin:0; font-size:40px;">R$ {divida:,.2f}</h1><p style="margin:0; font-size:12px;">Limite: R$ {limite_cli:.2f}</p></div>""", unsafe_allow_html=True)
+
             col_c, col_p = st.columns(2)
-            if col_c.button("➕ COMPRA"): st.session_state.op = "Compra"
-            if col_p.button("💵 PAGOU"): st.session_state.op = "Pagamento"
-            
-            # Form de lançamento e histórico vêm em seguida...
+            with col_c: 
+                if st.button("➕ COMPRA"): st.session_state.op = "Compra"
+            with col_p: 
+                if st.button("💵 PAGOU"): st.session_state.op = "Pagamento"
+
+            if 'op' in st.session_state:
+                if 'val_temp' not in st.session_state: st.session_state.val_temp = 0.0
+                st.subheader(f"Lançar {st.session_state.op}")
+                produtos = {"Água": 4.0, "Biscoito": 4.0, "Fruta": 4.0, "Pipoca": 7.0, "Refrigerante": 6.0, "Salgado": 8.0, "Suco": 6.0, "Suco Natural": 7.0}
+                cols = st.columns(2)
+                for i, (prod, preco) in enumerate(produtos.items()):
+                    if cols[i%2].button(f"{prod} (R$ {preco:.2f})", key=f"btn_{prod}"):
+                        st.session_state.val_temp += preco
+                        st.rerun()
+
+                with st.form("lanca_venda"):
+                    vf = st.number_input("Valor Final R$", min_value=0.0, value=st.session_state.val_temp)
+                    desc = st.text_input("Observação")
+                    if st.form_submit_button("✅ CONFIRMAR"):
+                        if vf > 0:
+                            _, df_v_up = load_data()
+                            nid = datetime.now().strftime("%Y%m%d%H%M%S")
+                            agora = datetime.now().strftime("%d/%m - %H:%M")
+                            new_row = pd.DataFrame([{'ID': nid, 'Cliente': cliente_final, 'Cat_Venda': cat_final, 'Item': desc, 'Valor': vf, 'Data': agora, 'Tipo': st.session_state.op}])
+                            pd.concat([df_v_up, new_row], ignore_index=True).to_csv(DB_VENDAS, index=False)
+                            st.session_state.val_temp = 0.0
+                            del st.session_state.op
+                            st.rerun()
+
+            st.divider()
+            if os.path.exists("QRcode.jpeg"):
+                st.image("QRcode.jpeg", caption="PIX: (13) 97827-5300", width=200)
+
+            url = f"https://wa.me/{tel}?text=Olá {cliente_final}, seu saldo no Bear Snack é R$ {divida:,.2f}"
+            st.markdown(f'<a href="{url}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">📲 WHATSAPP</div></a>', unsafe_allow_html=True)
+
+            st.write("### Histórico")
+            for i, row in v_c.iloc[::-1].iterrows():
+                cor_hist = "#B03020" if row['Tipo'] == "Compra" else "#2e7d32"
+                st.markdown(f'<div class="item-card"><div><b>{row["Item"] if str(row["Item"]) != "nan" and row["Item"] != "" else row["Tipo"]}</b><br><small>{row["Data"]}</small></div><b style="color:{cor_hist};">R$ {row["Valor"]:.2f}</b></div>', unsafe_allow_html=True)
+                if st.button("🗑️", key=f"del_{row['ID']}"):
+                    _, df_v_del = load_data()
+                    df_v_del = df_v_del[df_v_del['ID'] != row['ID']]
+                    df_v_del.to_csv(DB_VENDAS, index=False)
+                    st.rerun()
