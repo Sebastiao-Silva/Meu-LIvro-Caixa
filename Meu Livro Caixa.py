@@ -37,7 +37,6 @@ st.markdown("""
 DB_VENDAS = "vendas_bear_final.csv"
 DB_CLIENTES = "clientes_bear_final.csv"
 
-# --- FUNÇÃO PARA HORÁRIO DE SÃO PAULO (UTC-3) ---
 def get_sp_time():
     return datetime.utcnow() - timedelta(hours=3)
 
@@ -45,21 +44,14 @@ def get_sp_time():
 def load_data():
     c = pd.read_csv(DB_CLIENTES) if os.path.exists(DB_CLIENTES) else pd.DataFrame(columns=['Nome', 'Telefone', 'Categoria', 'Periodo', 'Turma', 'Limite'])
     v = pd.read_csv(DB_VENDAS) if os.path.exists(DB_VENDAS) else pd.DataFrame(columns=['ID', 'Cliente', 'Cat_Venda', 'Item', 'Valor', 'Data', 'Tipo'])
-    
     for col in ['Categoria', 'Periodo', 'Turma', 'Limite']:
         if col not in c.columns: c[col] = 50.0 if col == 'Limite' else "N/A"
-    
     if not v.empty:
         def parse_dt(x):
-            try:
-                # Tenta ler o formato dia/mes/ano salvo no CSV
-                return datetime.strptime(str(x).split(' - ')[0], "%d/%m/%Y").date()
-            except:
-                return get_sp_time().date()
+            try: return datetime.strptime(str(x).split(' - ')[0], "%d/%m/%Y").date()
+            except: return get_sp_time().date()
         v['dt_obj'] = v['Data'].apply(parse_dt)
-    else:
-        v['dt_obj'] = None
-        
+    else: v['dt_obj'] = None
     return c, v
 
 df_c, df_v = load_data()
@@ -141,7 +133,7 @@ else:
         if st.button("🎓 ALUNOS"): st.session_state.tela_atual = "alunos"; st.rerun()
         if st.button("💼 FUNCIONÁRIOS"): st.session_state.tela_atual = "funcionarios"; st.rerun()
         if st.button("📊 DEVEDORES"): st.session_state.tela_atual = "devedores"; st.rerun()
-        if st.button("📄 IMPRIMIR RELATÓRIO"): st.session_state.tela_atual = "relatorios"; st.rerun()
+        if st.button("📄 RELATÓRIOS"): st.session_state.tela_atual = "relatorios"; st.rerun()
 
     # --- 7. TELA DE RELATÓRIOS ---
     elif st.session_state.tela_atual == "relatorios":
@@ -149,57 +141,71 @@ else:
         if st.button("⬅️ VOLTAR AO MENU"): st.session_state.tela_atual = "home"; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
         
-        st.subheader("Configurar Impressão")
         tipo = st.selectbox("Tipo de Relatório:", 
                             ["Relatório Completo (Todos Devedores)", 
                              "Devedor Completo (Individual)", 
                              "Todos por Período (Calendário)", 
                              "Devedor por Período (Calendário)"])
         
-        tabela_html, titulo_rel = "", ""
+        tabela_html, titulo_rel, texto_txt = "", "", ""
         agora_sp = get_sp_time().date()
 
         if "Relatório Completo" in tipo:
             titulo_rel = "RELATÓRIO GERAL DE DEVEDORES"
-            dados = []
+            dados_html, dados_txt = [], [f"{titulo_rel}\n{'='*30}\nNOME{' '*16}SALDO\n{'-'*30}"]
             for _, r in df_c.iterrows():
                 v_cli = df_v[df_v['Cliente'] == r['Nome']]
                 saldo = v_cli[v_cli['Tipo'] == 'Compra']['Valor'].sum() - v_cli[v_cli['Tipo'] == 'Pagamento']['Valor'].sum()
-                if saldo > 0: dados.append(f"<tr><td>{r['Nome']}</td><td>R$ {saldo:.2f}</td></tr>")
-            tabela_html = f"<table class='print-table'><tr><th>Nome</th><th>Saldo devedor</th></tr>{''.join(dados)}</table>"
+                if saldo > 0: 
+                    dados_html.append(f"<tr><td>{r['Nome']}</td><td>R$ {saldo:.2f}</td></tr>")
+                    dados_txt.append(f"{r['Nome'][:20]:<20} R$ {saldo:>7.2f}")
+            tabela_html = f"<table class='print-table'><tr><th>Nome</th><th>Saldo</th></tr>{''.join(dados_html)}</table>"
+            texto_txt = "\n".join(dados_txt)
 
         elif "Devedor Completo" in tipo:
             n_sel = st.selectbox("Selecione:", sorted(df_c['Nome'].unique()))
-            titulo_rel = f"HISTÓRICO COMPLETO: {n_sel}"
+            titulo_rel = f"HISTÓRICO: {n_sel}"
             v_c = df_v[df_v['Cliente'] == n_sel]
-            dados = [f"<tr><td>{rv['Data']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_c.iterrows()]
-            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados)}</table>"
+            dados_html = [f"<tr><td>{rv['Data']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_c.iterrows()]
+            dados_txt = [f"{titulo_rel}\n{'='*30}\nDATA{' '*11}TIPO{' '*6}VALOR\n{'-'*30}"]
+            for _, rv in v_c.iterrows():
+                dados_txt.append(f"{rv['Data'][:14]:<14} {rv['Tipo'][:8]:<8} R${rv['Valor']:>6.2f}")
+            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados_html)}</table>"
+            texto_txt = "\n".join(dados_txt)
 
         elif "Todos por Período" in tipo:
             c1, c2 = st.columns(2)
             di, df = c1.date_input("Início", agora_sp), c2.date_input("Fim", agora_sp)
-            titulo_rel = f"RELATÓRIO GERAL: {di.strftime('%d/%m/%Y')} a {df.strftime('%d/%m/%Y')}"
+            titulo_rel = f"GERAL: {di.strftime('%d/%m')} a {df.strftime('%d/%m')}"
             mask = (df_v['dt_obj'] >= di) & (df_v['dt_obj'] <= df)
             v_f = df_v[mask]
-            dados = [f"<tr><td>{rv['Data']}</td><td>{rv['Cliente']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_f.iterrows()]
-            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados)}</table>"
+            dados_html = [f"<tr><td>{rv['Data']}</td><td>{rv['Cliente']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_f.iterrows()]
+            dados_txt = [f"{titulo_rel}\n{'='*30}\nDATA{' '*11}CLIENTE{' '*5}VALOR\n{'-'*30}"]
+            for _, rv in v_f.iterrows():
+                dados_txt.append(f"{rv['Data'][:14]:<14} {rv['Cliente'][:12]:<12} R${rv['Valor']:>6.2f}")
+            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados_html)}</table>"
+            texto_txt = "\n".join(dados_txt)
 
         elif "Devedor por Período" in tipo:
-            n_sel = st.selectbox("Selecione o Cliente:", sorted(df_c['Nome'].unique()))
+            n_sel = st.selectbox("Selecione:", sorted(df_c['Nome'].unique()))
             c1, c2 = st.columns(2)
             di, df = c1.date_input("De:", agora_sp), c2.date_input("Até:", agora_sp)
-            titulo_rel = f"EXTRATO {n_sel}: {di.strftime('%d/%m/%Y')} a {df.strftime('%d/%m/%Y')}"
+            titulo_rel = f"EXTRATO {n_sel}\n{di.strftime('%d/%m')} a {df.strftime('%d/%m')}"
             mask = (df_v['Cliente'] == n_sel) & (df_v['dt_obj'] >= di) & (df_v['dt_obj'] <= df)
             v_f = df_v[mask]
-            dados = [f"<tr><td>{rv['Data']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_f.iterrows()]
-            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados)}</table>"
+            dados_html = [f"<tr><td>{rv['Data']}</td><td>{rv['Tipo']}</td><td>R$ {rv['Valor']:.2f}</td></tr>" for _, rv in v_f.iterrows()]
+            dados_txt = [f"{titulo_rel}\n{'='*30}\nDATA{' '*11}TIPO{' '*6}VALOR\n{'-'*30}"]
+            for _, rv in v_f.iterrows():
+                dados_txt.append(f"{rv['Data'][:14]:<14} {rv['Tipo'][:8]:<8} R${rv['Valor']:>6.2f}")
+            tabela_html = f"<table class='print-table'><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr>{''.join(dados_html)}</table>"
+            texto_txt = "\n".join(dados_txt)
 
         st.divider()
+        st.download_button(label="📥 BAIXAR TXT PARA IMPRESSÃO", data=texto_txt, file_name=f"relatorio_bear.txt", mime="text/plain")
         st.markdown(f"<h3 style='text-align:center;'>{titulo_rel}</h3>", unsafe_allow_html=True)
         st.markdown(tabela_html, unsafe_allow_html=True)
-        st.info("Para salvar ou imprimir: Use Ctrl + P.")
 
-    # --- 8. TELAS INTERNAS (VENDAS RECUPERADAS) ---
+    # --- 8. TELAS INTERNAS ---
     else:
         st.markdown('<div class="btn-voltar">', unsafe_allow_html=True)
         if st.button("⬅️ VOLTAR AO MENU"):
@@ -211,8 +217,7 @@ else:
         if st.session_state.tela_atual == "alunos":
             st.subheader("🎓 Alunos")
             c1, c2 = st.columns(2)
-            pf = c1.selectbox("Período:", ["Manhã", "Tarde"])
-            tf = c2.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"])
+            pf, tf = c1.selectbox("Período:", ["Manhã", "Tarde"]), c2.selectbox("Turma:", ["1ª Turma", "2ª Turma", "3ª Turma"])
             df_fa = df_c[(df_c['Categoria'] == 'Aluno') & (df_c['Periodo'] == pf) & (df_c['Turma'] == tf)]
             sel_a = st.selectbox("Selecione:", ["-- Selecionar --"] + sorted(df_fa['Nome'].unique().tolist()))
             if sel_a != "-- Selecionar --": st.session_state.cliente_selecionado = (sel_a, "Aluno"); st.session_state.tela_atual = "vendas"; st.rerun()
@@ -248,16 +253,24 @@ else:
 
             if 'op' in st.session_state:
                 if 'val_temp' not in st.session_state: st.session_state.val_temp = 0.0
-                # BOTÕES DE PRODUTOS RESTAURADOS
-                produtos = {"Água": 4.0, "Salgado": 8.0, "Suco": 6.0, "Pipoca": 7.0, "Biscoito": 4.0, "Refrigerante": 6.0}
-                cols_p = st.columns(3) # 3 por linha para ficar organizado
+                
+                # --- BOTÕES DE VALORES FIXOS (RESTAURADOS) ---
+                st.write("Valores Rápidos:")
+                cv1, cv2, cv3 = st.columns(3)
+                if cv1.button("R$ 6,00"): st.session_state.val_temp += 6.0; st.rerun()
+                if cv2.button("R$ 7,00"): st.session_state.val_temp += 7.0; st.rerun()
+                if cv3.button("R$ 8,00"): st.session_state.val_temp += 8.0; st.rerun()
+
+                # --- BOTÕES DE ITENS ---
+                produtos = {"Água": 4.0, "Salgado": 8.0, "Suco": 6.0, "Pipoca": 7.0, "Biscoito": 4.0, "Refri": 6.0}
+                cols_p = st.columns(3)
                 for i, (prod, preco) in enumerate(produtos.items()):
-                    if cols_p[i%3].button(f"{prod}\nR${preco:.2f}"): 
+                    if cols_p[i%3].button(f"{prod}\n${preco:.2f}"): 
                         st.session_state.val_temp += preco; st.rerun()
                 
                 with st.form("lanca"):
-                    vf = st.number_input("Valor", value=st.session_state.val_temp)
-                    obs = st.text_input("Obs (Opcional):")
+                    vf = st.number_input("Valor Final", value=st.session_state.val_temp)
+                    obs = st.text_input("Obs:")
                     if st.form_submit_button("✅ CONFIRMAR"):
                         sp_now = get_sp_time()
                         data_br = sp_now.strftime("%d/%m/%Y - %H:%M")
