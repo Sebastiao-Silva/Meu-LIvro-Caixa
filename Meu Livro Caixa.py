@@ -16,7 +16,7 @@ st.markdown("""
     /* Centralização Absoluta do Logo no Topo */
     [data-testid="stImage"] {
         display: block;
-        margin-left: 50%;
+        margin-left: 0%;
         margin-right: 50%;
         width: fit-content;
     }
@@ -281,5 +281,6 @@ else:
                 df_v_del = df_v_del[df_v_del['ID'] != row['ID']]
                 df_v_del.to_csv(DB_VENDAS, index=False)
                 st.rerun()
+
 
 
