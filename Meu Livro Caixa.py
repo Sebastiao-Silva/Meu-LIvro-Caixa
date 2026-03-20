@@ -210,4 +210,4 @@ elif menu == "Relatórios":
         y = altura - 100
         for v in vendas[:30]:
             dt = datetime.fromtimestamp(v[1]/1000).strftime('%d/%m/%Y %H:%M')
-            pdf.drawString(50, y, f"{dt} - R$ {v[2]:.2f}
+            pdf.drawString(50, y, f"{dt} - R$ {v[2]:.2f})
