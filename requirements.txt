@@ -1,7 +1,4 @@
 streamlit
-pandas
-plotly
-flask
-pillow
 reportlab
+pillow
 sqlite3
