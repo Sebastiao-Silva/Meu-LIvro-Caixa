@@ -1,10 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for
+import streamlit as st
 import sqlite3
 from datetime import datetime
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-
-app = Flask(__name__)
 
 # ==========================================
 # 1. BANCO DE DADOS
@@ -34,38 +30,46 @@ def iniciar_banco():
 iniciar_banco()
 
 # ==========================================
-# 2. ROTAS PRINCIPAIS
+# 2. INTERFACE STREAMLIT
 # ==========================================
-@app.route("/")
-def index():
-    return "<h1>Livro Caixa - Bear Snack</h1><p><a href='/clientes'>Clientes</a> | <a href='/vendas'>Vendas</a></p>"
+st.title("📒 Livro Caixa - Bear Snack")
 
-@app.route("/clientes")
-def clientes():
+menu = st.sidebar.radio("Navegação", ["Início", "Clientes", "Vendas"])
+
+if menu == "Início":
+    st.write("Bem-vindo ao sistema de Livro Caixa!")
+
+elif menu == "Clientes":
+    st.subheader("Lista de Clientes")
     conn = sqlite3.connect('livro_caixa.db')
     cur = conn.cursor()
     cur.execute("SELECT * FROM clientes")
     dados = cur.fetchall()
     conn.close()
-    html = "<h2>Clientes</h2><ul>"
     for c in dados:
-        html += f"<li>{c[1]} - Perfil: {c[2]} - Dívida: R$ {c[5]}</li>"
-    html += "</ul><a href='/'>Voltar</a>"
-    return html
+        st.write(f"**{c[1]}** - Perfil: {c[2]} - Dívida: R$ {c[5]:.2f}")
 
-@app.route("/vendas")
-def vendas():
+    st.subheader("Adicionar Cliente")
+    nome = st.text_input("Nome")
+    perfil = st.selectbox("Perfil", ["ALUNO", "FUNCIONÁRIO", "CLIENTE"])
+    contato = st.text_input("Contato")
+    limite = st.number_input("Limite de Crédito", min_value=0.0)
+    if st.button("Salvar Cliente"):
+        conn = sqlite3.connect('livro_caixa.db')
+        cur = conn.cursor()
+        cur.execute("INSERT INTO clientes (nome, perfil, contato, limite) VALUES (?,?,?,?)",
+                    (nome, perfil, contato, limite))
+        conn.commit()
+        conn.close()
+        st.success("Cliente adicionado com sucesso!")
+
+elif menu == "Vendas":
+    st.subheader("Registro de Vendas")
     conn = sqlite3.connect('livro_caixa.db')
     cur = conn.cursor()
     cur.execute("SELECT * FROM vendas")
     dados = cur.fetchall()
     conn.close()
-    html = "<h2>Vendas</h2><ul>"
     for v in dados:
         dt = datetime.fromtimestamp(v[1]/1000).strftime('%d/%m/%Y %H:%M')
-        html += f"<li>{dt} - Total: R$ {v[2]} - Método: {v[3]}</li>"
-    html += "</ul><a href='/'>Voltar</a>"
-    return html
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+        st.write(f"{dt} - Total: R$ {v[2]:.2f} - Método: {v[3]}")
