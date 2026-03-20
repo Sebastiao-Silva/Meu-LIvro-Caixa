@@ -210,4 +210,8 @@ elif menu == "Relatórios":
         y = altura - 100
         for v in vendas[:30]:
             dt = datetime.fromtimestamp(v[1]/1000).strftime('%d/%m/%Y %H:%M')
-            pdf.drawString(50, y, f"{dt} - R$ {v[2]:.2f})
+            pdf.drawString(50, y, f"{dt} - R$ {v[2]:.2f} - Método: {v[3]} - {v[4]}")
+            y -= 20
+        pdf.drawString(50, y-40, f"TOTAL: R$ {total:.2f}")
+        pdf.save()
+        st.success(f"PDF gerado: {nome_arquivo}")
