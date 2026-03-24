@@ -1,0 +1,10 @@
+app:
+  name: "BEAR SNACK"
+  package_name: "com.sebas.caixacomercial"
+
+android:
+  icon: "icon.png"
+  min_sdk_version: 24
+  include_packages:
+    - pandas
+    - openpyxl
