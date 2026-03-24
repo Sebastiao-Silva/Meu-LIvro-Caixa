@@ -23,25 +23,39 @@ if 'valor_venda' not in st.session_state:
     st.session_state.valor_venda = 0.0
 
 # ==========================================
-# 2. BANCO DE DADOS (SQLite)
+# 2. BANCO DE DADOS (SQLite com Auto-Migração)
 # ==========================================
 DB_NAME = 'livro_caixa.db'
 
+def get_connection():
+    return sqlite3.connect(DB_NAME)
+
 def iniciar_banco():
-    """Cria as tabelas se não existirem."""
-    conn = sqlite3.connect(DB_NAME)
+    """Cria as tabelas e garante que as colunas novas existam."""
+    conn = get_connection()
     cursor = conn.cursor()
-    # Tabela de Vendas
+    
+    # Criar Tabela de Vendas se não existir
     cursor.execute('''CREATE TABLE IF NOT EXISTS vendas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         data_ms INTEGER,
         total REAL,
         metodo TEXT,
-        descricao_resumo TEXT,
-        baixada INTEGER DEFAULT 1,
-        cliente_nome TEXT
+        descricao_resumo TEXT
     )''')
-    # Tabela de Clientes
+    
+    # MIGRACAO: Adicionar colunas novas caso a tabela já existisse antes
+    try:
+        cursor.execute("ALTER TABLE vendas ADD COLUMN baixada INTEGER DEFAULT 1")
+    except:
+        pass # Coluna já existe
+        
+    try:
+        cursor.execute("ALTER TABLE vendas ADD COLUMN cliente_nome TEXT")
+    except:
+        pass # Coluna já existe
+
+    # Criar Tabela de Clientes
     cursor.execute('''CREATE TABLE IF NOT EXISTS clientes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL UNIQUE,
@@ -52,13 +66,11 @@ def iniciar_banco():
         periodo TEXT,
         saldo_devedor REAL DEFAULT 0.0
     )''')
+    
     conn.commit()
     conn.close()
 
-def get_connection():
-    return sqlite3.connect(DB_NAME)
-
-# Inicia o banco ao abrir o app
+# Executa a inicialização/migração
 iniciar_banco()
 
 # ==========================================
@@ -78,9 +90,8 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. BARRA LATERAL (CORRIGIDA)
+# 4. BARRA LATERAL
 # ==========================================
-# Removida a linha única que causava erro de exibição de métodos
 if os.path.exists("logo.png"):
     st.sidebar.image("logo.png", width=150)
 else:
@@ -94,10 +105,10 @@ menu = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.caption(f"Usuário: Sebas | v2.1")
+st.sidebar.caption(f"Usuário: Sebas | v2.2")
 
 # ==========================================
-# 5. ABAS DO SISTEMA
+# 5. LÓGICA DAS ABAS
 # ==========================================
 
 # --- ABA: PDV ---
@@ -127,27 +138,36 @@ if menu == "🛒 PDV":
             metodo = st.selectbox("Pagamento", ["DINHEIRO", "PIX", "CARTÃO", "FIADO"])
             
             cliente_venda = None
+            lista_c = []
             if metodo == "FIADO":
                 with get_connection() as conn:
-                    lista_c = pd.read_sql_query("SELECT nome FROM clientes", conn)['nome'].tolist()
-                cliente_venda = st.selectbox("Selecione o Cliente", lista_c)
+                    df_cli = pd.read_sql_query("SELECT nome FROM clientes", conn)
+                    lista_c = df_cli['nome'].tolist()
+                cliente_venda = st.selectbox("Selecione o Cliente", lista_c if lista_c else ["Nenhum cliente cadastrado"])
 
             if st.button("CONFIRMAR", use_container_width=True, type="primary"):
-                agora = int(datetime.now().timestamp() * 1000)
-                baixada = 0 if metodo == "FIADO" else 1
-                
-                with get_connection() as conn:
-                    cur = conn.cursor()
-                    cur.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,?,?)",
-                                (agora, valor, metodo, desc, baixada, cliente_venda))
-                    if metodo == "FIADO" and cliente_venda:
-                        cur.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (valor, cliente_venda))
-                    conn.commit()
-                
-                st.success("Venda Realizada!")
-                st.session_state.desc_venda = ""
-                st.session_state.valor_venda = 0.0
-                st.rerun()
+                if metodo == "FIADO" and not lista_c:
+                    st.error("Cadastre um cliente primeiro!")
+                else:
+                    agora = int(datetime.now().timestamp() * 1000)
+                    baixada = 0 if metodo == "FIADO" else 1
+                    
+                    with get_connection() as conn:
+                        cur = conn.cursor()
+                        # INSERT CORRIGIDO COM 6 COLUNAS
+                        cur.execute("""
+                            INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) 
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (agora, valor, metodo, desc, baixada, cliente_venda))
+                        
+                        if metodo == "FIADO" and cliente_venda:
+                            cur.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (valor, cliente_venda))
+                        conn.commit()
+                    
+                    st.success("Venda Realizada!")
+                    st.session_state.desc_venda = ""
+                    st.session_state.valor_venda = 0.0
+                    st.rerun()
 
 # --- ABA: CADERNETA ---
 elif menu == "👥 Caderneta":
@@ -156,63 +176,93 @@ elif menu == "👥 Caderneta":
     
     with tab1:
         with get_connection() as conn:
-            df_c = pd.read_sql_query("SELECT * FROM clientes", conn)
+            df_c = pd.read_sql_query("SELECT nome, tipo, saldo_devedor, telefone FROM clientes", conn)
         st.dataframe(df_c, use_container_width=True)
     
     with tab2:
         with st.form("novo_cliente"):
             n_nome = st.text_input("Nome").upper()
             n_tipo = st.selectbox("Tipo", ["ALUNO", "FUNCIONÁRIO", "BANDEJA"])
-            n_tel = st.text_input("Telefone (com DDD)")
-            if st.form_submit_button("Cadastrar"):
-                with get_connection() as conn:
-                    conn.execute("INSERT INTO clientes (nome, tipo, telefone) VALUES (?,?,?)", (n_nome, n_tipo, n_tel))
-                st.success("Cadastrado!")
+            n_tel = st.text_input("Telefone (WhatsApp)")
+            if st.form_submit_button("Salvar Cadastro"):
+                if n_nome:
+                    try:
+                        with get_connection() as conn:
+                            conn.execute("INSERT INTO clientes (nome, tipo, telefone) VALUES (?,?,?)", (n_nome, n_tipo, n_tel))
+                        st.success("Cliente cadastrado!")
+                        st.rerun()
+                    except:
+                        st.error("Este nome já existe.")
+                else:
+                    st.warning("Preencha o nome.")
 
 # --- ABA: BANDEJA ---
 elif menu == "🍱 Bandeja":
-    st.header("Lançamento de Bandeja")
-    valor_b = st.number_input("Valor da Bandeja", value=15.0)
+    st.header("Lançamento de Bandeja (Em Massa)")
+    valor_b = st.number_input("Valor Unitário R$", value=15.0)
+    
     with get_connection() as conn:
         alunos = pd.read_sql_query("SELECT nome FROM clientes WHERE tipo='BANDEJA'", conn)['nome'].tolist()
     
-    selecionados = []
-    c_b = st.columns(3)
-    for i, nome in enumerate(alunos):
-        if c_b[i % 3].checkbox(nome):
-            selecionados.append(nome)
+    if not alunos:
+        st.info("Cadastre clientes com o tipo 'BANDEJA' para usar esta função.")
+    else:
+        selecionados = []
+        st.write("Selecione quem consumiu hoje:")
+        c_b = st.columns(4)
+        for i, nome in enumerate(alunos):
+            if c_b[i % 4].checkbox(nome):
+                selecionados.append(nome)
             
-    if st.button("Lançar para selecionados"):
-        agora = int(datetime.now().timestamp() * 1000)
-        with get_connection() as conn:
-            for n in selecionados:
-                conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,?,?)",
-                            (agora, valor_b, "FIADO", "BANDEJA DIÁRIA", 0, n))
-                conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (valor_b, n))
-            conn.commit()
-        st.success("Lançado com sucesso!")
+        if st.button("Lançar Dívida para Selecionados", type="primary"):
+            if selecionados:
+                agora = int(datetime.now().timestamp() * 1000)
+                with get_connection() as conn:
+                    for n in selecionados:
+                        conn.execute("""
+                            INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) 
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (agora, valor_b, "FIADO", "BANDEJA DIÁRIA", 0, n))
+                        conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (valor_b, n))
+                    conn.commit()
+                st.success(f"Lançado para {len(selecionados)} pessoas!")
+            else:
+                st.warning("Ninguém selecionado.")
 
 # --- ABA: HISTÓRICO ---
 elif menu == "📜 Histórico":
-    st.header("Últimas Movimentações")
+    st.header("Histórico Recente")
     try:
         with get_connection() as conn:
             df_v = pd.read_sql_query("SELECT * FROM vendas ORDER BY id DESC LIMIT 50", conn)
         
         if not df_v.empty:
+            # Converter timestamp para data legível
             df_v['Data'] = df_v['data_ms'].apply(lambda x: datetime.fromtimestamp(x/1000).strftime('%d/%m %H:%M'))
-            st.dataframe(df_v[['id', 'Data', 'total', 'metodo', 'descricao_resumo', 'cliente_nome']], use_container_width=True)
+            # Exibir tabela limpa
+            cols = ['id', 'Data', 'total', 'metodo', 'descricao_resumo', 'cliente_nome']
+            st.dataframe(df_v[cols], use_container_width=True)
+            
+            # Opção de Excluir
+            with st.expander("🗑️ Excluir Registro"):
+                id_excluir = st.number_input("ID da venda", min_value=0, step=1)
+                if st.button("Confirmar Exclusão"):
+                    with get_connection() as conn:
+                        conn.execute("DELETE FROM vendas WHERE id=?", (id_excluir,))
+                        conn.commit()
+                    st.rerun()
         else:
-            st.info("Nenhuma venda encontrada.")
-    except:
-        st.warning("Banco de dados vazio.")
+            st.info("Nenhuma venda registrada ainda.")
+    except Exception as e:
+        st.error(f"Erro ao carregar banco: {e}")
 
 # --- ABA: RELATÓRIOS ---
 elif menu == "📊 Relatórios":
     st.header("Resumo Financeiro")
     with get_connection() as conn:
-        resumo_vendas = pd.read_sql_query("SELECT SUM(total) as Total FROM vendas", conn)
-        resumo_fiado = pd.read_sql_query("SELECT SUM(saldo_devedor) as Total FROM clientes", conn)
+        res_vendas = pd.read_sql_query("SELECT SUM(total) as Total FROM vendas", conn)
+        res_fiado = pd.read_sql_query("SELECT SUM(saldo_devedor) as Total FROM clientes", conn)
     
-    st.metric("Total Vendido (Geral)", f"R$ {resumo_vendas['Total'][0] or 0:.2f}")
-    st.metric("Total a Receber (Caderneta)", f"R$ {resumo_fiado['Total'][0] or 0:.2f}")
+    c1, c2 = st.columns(2)
+    c1.metric("Faturamento Total", f"R$ {res_vendas['Total'][0] or 0:.2f}")
+    c2.metric("Total em Aberto (Fiado)", f"R$ {res_fiado['Total'][0] or 0:.2f}")
