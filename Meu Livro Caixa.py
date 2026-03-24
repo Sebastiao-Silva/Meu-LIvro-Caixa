@@ -115,7 +115,7 @@ if not st.session_state.autenticado:
 # 4. MENU SUPERIOR ESTÁTICO (WEB APP STYLE)
 # ==========================================
 # Exibe o logo e o menu sempre no topo
-col_logo, col_titulo = st.columns([1, 4])
+col_logo, col_titulo = st.columns([4, 4])
 with col_logo:
     if os.path.exists("logo.png"):
         st.image("logo.png", width=60)
