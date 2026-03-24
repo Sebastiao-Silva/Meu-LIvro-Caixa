@@ -227,33 +227,17 @@ elif menu == "📜 Histórico":
     
     try:
         with get_connection() as conn:
-            # Buscamos os dados com segurança
             df_v = pd.read_sql_query("SELECT * FROM vendas ORDER BY id DESC LIMIT 100", conn)
         
         if not df_v.empty:
-            # Formata a data para ficar legível (Dia/Mês Hora:Min)
+            # Garanta que a coluna data_ms existe antes de converter
             df_v['Data'] = df_v['data_ms'].apply(lambda x: datetime.fromtimestamp(x/1000).strftime('%d/%m %H:%M'))
-            
-            # Exibe apenas as colunas importantes
-            colunas_exibir = ['id', 'Data', 'total', 'metodo', 'descricao_resumo', 'cliente_nome']
-            st.dataframe(df_v[colunas_exibir], use_container_width=True)
-            
-            # Opção de excluir (Cuidado!)
-            id_del = st.number_input("ID para exclusão", min_value=0, step=1)
-            if st.button("Excluir Registro"):
-                with get_connection() as conn:
-                    conn.execute("DELETE FROM vendas WHERE id=?", (id_del,))
-                    conn.commit()
-                st.success(f"Registro {id_del} removido!")
-                st.rerun()
+            st.dataframe(df_v[['id', 'Data', 'total', 'metodo', 'descricao_resumo', 'cliente_nome']], use_container_width=True)
         else:
-            st.info("Nenhuma venda registrada ainda. Vá para a aba PDV e faça a primeira venda!")
-
+            st.info("O banco de dados está sendo inicializado ou está vazio. Faça uma venda no PDV primeiro!")
     except Exception as e:
-        st.warning("O banco de dados está sendo inicializado ou está vazio.")
-        # Se a tabela não existir, forçamos a criação novamente por segurança
-        iniciar_banco()
-
+        # Se der erro, ele mostra o aviso amarelo, mas NÃO a lista de métodos
+        st.warning("Aguardando registros no banco de dados...")
 # ------------------------------------------
 # ABA: RELATÓRIOS E EXPORTAÇÃO
 # ------------------------------------------
