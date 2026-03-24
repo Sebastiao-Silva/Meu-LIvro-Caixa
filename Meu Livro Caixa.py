@@ -220,27 +220,39 @@ elif menu == "🍱 Bandeja":
                 st.error("Ninguém selecionado.")
 
 # ------------------------------------------
-# ABA: HISTÓRICO E EXCLUSÃO
+# ABA: HISTÓRICO (COM TRATAMENTO DE ERRO)
 # ------------------------------------------
 elif menu == "📜 Histórico":
     st.header("Últimas Movimentações")
-    with get_connection() as conn:
-        df_v = pd.read_sql_query("SELECT id, data_ms, total, metodo, descricao_resumo, cliente_nome FROM vendas ORDER BY id DESC LIMIT 100", conn)
     
-    if not df_v.empty:
-        df_v['Data'] = df_v['data_ms'].apply(lambda x: datetime.fromtimestamp(x/1000).strftime('%d/%m %H:%M'))
-        st.dataframe(df_v[['id', 'Data', 'total', 'metodo', 'descricao_resumo', 'cliente_nome']], use_container_width=True)
+    try:
+        with get_connection() as conn:
+            # Buscamos os dados com segurança
+            df_v = pd.read_sql_query("SELECT * FROM vendas ORDER BY id DESC LIMIT 100", conn)
         
-        id_del = st.number_input("ID para exclusão", min_value=0, step=1)
-        if st.button("Excluir Registro permanentemente"):
-            with get_connection() as conn:
-                cur = conn.cursor()
-                venda = cur.execute("SELECT total, cliente_nome, baixada FROM vendas WHERE id=?", (id_del,)).fetchone()
-                if venda and venda[2] == 0 and venda[1]: # Se era fiado, estorna a dívida do cliente
-                    cur.execute("UPDATE clientes SET saldo_devedor = saldo_devedor - ? WHERE nome = ?", (venda[0], venda[1]))
-                cur.execute("DELETE FROM vendas WHERE id=?", (id_del,))
-                conn.commit()
-            st.rerun()
+        if not df_v.empty:
+            # Formata a data para ficar legível (Dia/Mês Hora:Min)
+            df_v['Data'] = df_v['data_ms'].apply(lambda x: datetime.fromtimestamp(x/1000).strftime('%d/%m %H:%M'))
+            
+            # Exibe apenas as colunas importantes
+            colunas_exibir = ['id', 'Data', 'total', 'metodo', 'descricao_resumo', 'cliente_nome']
+            st.dataframe(df_v[colunas_exibir], use_container_width=True)
+            
+            # Opção de excluir (Cuidado!)
+            id_del = st.number_input("ID para exclusão", min_value=0, step=1)
+            if st.button("Excluir Registro"):
+                with get_connection() as conn:
+                    conn.execute("DELETE FROM vendas WHERE id=?", (id_del,))
+                    conn.commit()
+                st.success(f"Registro {id_del} removido!")
+                st.rerun()
+        else:
+            st.info("Nenhuma venda registrada ainda. Vá para a aba PDV e faça a primeira venda!")
+
+    except Exception as e:
+        st.warning("O banco de dados está sendo inicializado ou está vazio.")
+        # Se a tabela não existir, forçamos a criação novamente por segurança
+        iniciar_banco()
 
 # ------------------------------------------
 # ABA: RELATÓRIOS E EXPORTAÇÃO
