@@ -44,8 +44,8 @@ st.markdown("""
         div.stButton > button {
             border-radius: 4px;
             padding: 0px !important;
-            height: 60px !important; 
-            width: 20% !important;
+            height: 6px !important; 
+            width: 100% !important;
             font-size: 22px !important; 
             background-color: #262730;
             border: 1px solid #464855;
