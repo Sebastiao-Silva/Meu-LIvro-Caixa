@@ -34,7 +34,7 @@ st.markdown("""
         
         /* CADA COLUNA OCUPA EXATAMENTE 20% DA LARGURA */
         [data-testid="column"] {
-            width: 2% !important;
+            width: 20% !important;
             flex: 1 1 auto !important;
             min-width: 0px !important;
             padding: 0px !important;
@@ -45,7 +45,7 @@ st.markdown("""
             border-radius: 4px;
             padding: 0px !important;
             height: 60px !important; 
-            width: 100% !important;
+            width: 20% !important;
             font-size: 22px !important; 
             background-color: #262730;
             border: 1px solid #464855;
