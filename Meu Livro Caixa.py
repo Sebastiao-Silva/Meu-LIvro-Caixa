@@ -20,7 +20,7 @@ st.markdown("""
         /* Remove paddings laterais para ganhar largura no celular */
         .block-container { 
             padding: 0.5rem 0.2rem 5rem 0.2rem !important; 
-            max-width: 100% !important;
+            max-width: 50% !important;
         }
         
         /* FORÇA O CONTAINER DE COLUNAS A SER UM FLEXBOX SEM QUEBRA */
