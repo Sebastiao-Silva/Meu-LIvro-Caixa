@@ -1,10 +1,11 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import os
 from datetime import datetime
 
 # ==========================================
-# 1. CONFIGURAÇÕES E CSS "FORCE" (MOTO G30)
+# 1. CONFIGURAÇÕES E CSS "APP MODE"
 # ==========================================
 st.set_page_config(
     page_title="Bear Snack PDV",
@@ -13,73 +14,72 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Injeção de CSS que força 2 colunas e impede empilhamento
+# CSS que força 2 colunas mesmo no modo "Instalado como App"
 st.html("""
     <style>
-        /* Ajuste do container principal */
+        /* Ajuste do container principal para preencher a tela do App */
         .block-container { 
             padding: 0.5rem 0.5rem 5rem 0.5rem !important; 
-            max-width: 360px !important;
-            margin: 0 auto;
+            max-width: 100% !important;
         }
 
-        /* FORÇA O MENU SUPERIOR EM 5 COLUNAS LADO A LADO */
+        /* FORÇA 5 COLUNAS NO MENU SUPERIOR (MODO APP) */
         [data-testid="stHorizontalBlock"]:has(button[key="m1"]) {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
+            display: grid !important;
+            grid-template-columns: repeat(5, 1fr) !important;
             gap: 4px !important;
-        }
-        [data-testid="stHorizontalBlock"]:has(button[key="m1"]) [data-testid="column"] {
-            width: 20% !important;
-            min-width: 20% !important;
-        }
-
-        /* FORÇA OS BOTÕES DE PRODUTO EM 2 COLUNAS (IMPEDE O EMPILHAMENTO) */
-        [data-testid="stHorizontalBlock"]:has(button[key^="btn_"]) {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 8px !important;
-            margin-bottom: 8px !important;
-        }
-        [data-testid="stHorizontalBlock"]:has(button[key^="btn_"]) [data-testid="column"] {
-            width: 50% !important;
-            min-width: 50% !important;
-        }
-
-        /* ESTILO PROFISSIONAL DOS BOTÕES */
-        div.stButton > button {
             width: 100% !important;
-            border-radius: 10px !important;
-            font-weight: bold !important;
-            border: 1px solid #464855 !important;
-            background: #262730 !important;
         }
 
-        /* BOTÕES DE PRODUTO (ALTURA E TEXTO) */
+        /* FORÇA 2 COLUNAS NOS PRODUTOS (IMPEDE EMPILHAMENTO NO MOTO G30) */
+        [data-testid="stHorizontalBlock"]:has(button[key^="btn_"]) {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+            width: 100% !important;
+        }
+
+        /* ESTILO DOS BOTÕES DE PRODUTO */
         div.stButton > button[key^="btn_"] {
-            height: 80px !important;
+            height: 85px !important;
+            width: 100% !important;
+            border-radius: 12px !important;
             font-size: 14px !important;
+            font-weight: bold !important;
+            background: linear-gradient(145deg, #2e313c, #262730) !important;
+            border: 1px solid #464855 !important;
+            color: white !important;
             white-space: pre-wrap !important;
             line-height: 1.2 !important;
-            background: linear-gradient(145deg, #2e313c, #262730) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
-        /* BOTÃO DE CONFIRMAÇÃO */
+        /* BOTÕES DO MENU SUPERIOR */
+        div.stButton > button {
+            border-radius: 8px;
+            height: 50px !important;
+            background-color: #262730;
+            border: 1px solid #464855;
+            padding: 0px !important;
+        }
+
+        /* BOTÃO CONFIRMAR (DESTAQUE) */
         div.stButton > button[type="primary"] {
-            height: 60px !important;
+            height: 65px !important;
+            font-size: 18px !important;
             background-color: #ff4b4b !important;
-            font-size: 16px !important;
         }
 
-        /* LIMPEZA DE INTERFACE */
+        /* REMOVE ELEMENTOS QUE POLUEM O MODO APP */
         #MainMenu, header, footer { visibility: hidden; }
+        [data-testid="stHeader"] { display: none; }
     </style>
 """)
 
 # ==========================================
-# 2. BANCO DE DADOS
+# 2. BANCO DE DADOS (SQLITE)
 # ==========================================
 DB_NAME = 'livro_caixa.db'
 
@@ -99,7 +99,7 @@ def iniciar_banco():
             nome TEXT NOT NULL UNIQUE, tipo TEXT DEFAULT 'CLIENTE',
             telefone TEXT, saldo_devedor REAL DEFAULT 0.0
         )''')
-        # Garantir colunas para evitar erros de DatabaseError observados anteriormente
+        # Migrações preventivas para evitar DatabaseError
         try: cursor.execute("ALTER TABLE vendas ADD COLUMN baixada INTEGER DEFAULT 1")
         except: pass
         try: cursor.execute("ALTER TABLE vendas ADD COLUMN cliente_nome TEXT")
@@ -111,7 +111,7 @@ def iniciar_banco():
 iniciar_banco()
 
 # ==========================================
-# 3. ESTADO E LOGIN
+# 3. ESTADO E ACESSO
 # ==========================================
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'pagina' not in st.session_state: st.session_state.pagina = "🛒"
@@ -128,10 +128,11 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. MENU DE NAVEGAÇÃO (RESTAURADO)
+# 4. NAVEGAÇÃO SUPERIOR (RESTAURADA)
 # ==========================================
-st.markdown(f"<p style='text-align:center; font-weight:bold;'>🐻 {st.session_state.pagina} PDV</p>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align:center; font-weight:bold; margin-bottom:5px;'>🐻 {st.session_state.pagina} Bear Snack</p>", unsafe_allow_html=True)
 
+# Colunas de navegação restauradas para todas as abas
 m1, m2, m3, m4, m5 = st.columns(5)
 if m1.button("🛒", key="m1"): st.session_state.pagina = "🛒"; st.rerun()
 if m2.button("👥", key="m2"): st.session_state.pagina = "👥"; st.rerun()
@@ -142,11 +143,11 @@ if m5.button("📊", key="m5"): st.session_state.pagina = "📊"; st.rerun()
 st.markdown("---")
 
 # ==========================================
-# 5. PÁGINAS
+# 5. CONTEÚDO
 # ==========================================
 
 if st.session_state.pagina == "🛒":
-    # Nomes inteiros conforme solicitado para estética profissional
+    # Atalhos com nomes completos para visual profissional
     atalhos = [
         ("SUCO", 6.0), ("REFRI", 6.0), 
         ("SALGADO", 8.0), ("PIPOCA", 7.0),
@@ -154,32 +155,32 @@ if st.session_state.pagina == "🛒":
         ("SANDUÍCHE", 8.0), ("BOLO", 9.0)
     ]
     
-    # Criando as linhas de 2 colunas manualmente para forçar o layout
+    # Renderização em 2 colunas forçadas
     for i in range(0, len(atalhos), 2):
-        cols = st.columns(2)
+        row = st.columns(2)
         n1, p1 = atalhos[i]
-        if cols[0].button(f"{n1}\nR${p1:.2f}", key=f"btn_{n1}"):
+        if row[0].button(f"{n1}\nR${p1:.2f}", key=f"btn_{n1}"):
             st.session_state.desc_venda = n1
             st.session_state.valor_venda = p1
             st.rerun()
         
         if i + 1 < len(atalhos):
             n2, p2 = atalhos[i+1]
-            if cols[1].button(f"{n2}\nR${p2:.2f}", key=f"btn_{n2}"):
+            if row[1].button(f"{n2}\nR${p2:.2f}", key=f"btn_{n2}"):
                 st.session_state.desc_venda = n2
                 st.session_state.valor_venda = p2
                 st.rerun()
 
     with st.container(border=True):
-        v_item = st.text_input("Descrição", value=st.session_state.desc_venda)
-        v_pre = st.number_input("Valor R$", value=st.session_state.valor_venda)
-        v_mod = st.selectbox("Pagamento", ["DINHEIRO", "PIX", "CARTÃO", "FIADO"])
+        v_item = st.text_input("Item", value=st.session_state.desc_venda)
+        v_pre = st.number_input("Preço R$", value=st.session_state.valor_venda)
+        v_mod = st.selectbox("Pgto", ["DINHEIRO", "PIX", "CARTÃO", "FIADO"])
         
         v_cli = None
         if v_mod == "FIADO":
             with get_connection() as conn:
                 clis = pd.read_sql_query("SELECT nome FROM clientes ORDER BY nome", conn)['nome'].tolist()
-            v_cli = st.selectbox("Cliente", clis if clis else ["Sem Clientes"])
+            v_cli = st.selectbox("Cliente", clis if clis else ["Vazio"])
         
         if st.button("CONFIRMAR VENDA 🚀", use_container_width=True, type="primary"):
             agora = int(datetime.now().timestamp() * 1000)
@@ -190,53 +191,53 @@ if st.session_state.pagina == "🛒":
                 if v_mod == "FIADO" and v_cli:
                     conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (v_pre, v_cli))
                 conn.commit()
-            st.success("Venda OK!")
+            st.success("Vendido!")
             st.session_state.desc_venda = ""
             st.session_state.valor_venda = 0.0
             st.rerun()
 
 elif st.session_state.pagina == "👥":
-    st.write("### 👥 Gestão de Clientes")
-    with st.expander("Cadastrar"):
-        n = st.text_input("Nome").upper()
-        if st.button("SALVAR"):
+    st.write("### 👥 Clientes")
+    with st.expander("Cadastrar Novo"):
+        n = st.text_input("Nome do Cliente").upper()
+        if st.button("SALVAR CADASTRO"):
             with get_connection() as conn:
                 conn.execute("INSERT INTO clientes (nome, tipo) VALUES (?, 'ALUNO')", (n,))
             st.rerun()
     with get_connection() as conn:
-        df = pd.read_sql_query("SELECT nome, saldo_devedor FROM clientes WHERE saldo_devedor > 0", conn)
+        df = pd.read_sql_query("SELECT nome, saldo_devedor FROM clientes WHERE saldo_devedor > 0 ORDER BY nome", conn)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 elif st.session_state.pagina == "🍱":
-    st.write("### 🍱 Bandeja")
-    val_b = st.number_input("Valor", value=15.0)
+    st.write("### 🍱 Bandeja Diária")
+    val_b = st.number_input("Valor Unidade", value=15.0)
     with get_connection() as conn:
         alunos = pd.read_sql_query("SELECT nome FROM clientes WHERE tipo='BANDEJA'", conn)['nome'].tolist()
     sel = []
     for a in alunos:
         if st.checkbox(a, key=f"chk_{a}"): sel.append(a)
-    if st.button("LANÇAR SELECIONADOS", use_container_width=True, type="primary"):
+    if st.button("LANÇAR BANDEJAS", use_container_width=True, type="primary"):
         agora = int(datetime.now().timestamp() * 1000)
         with get_connection() as conn:
             for n in sel:
                 conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,0,?)", (agora, val_b, "FIADO", "BANDEJA", n))
                 conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (val_b, n))
             conn.commit()
-        st.rerun()
+        st.success("Lançado!"); st.rerun()
 
 elif st.session_state.pagina == "📜":
-    st.write("### 📜 Últimas Vendas")
+    st.write("### 📜 Recentes")
     with get_connection() as conn:
-        df_h = pd.read_sql_query("SELECT id, total, metodo, cliente_nome FROM vendas ORDER BY id DESC LIMIT 10", conn)
+        df_h = pd.read_sql_query("SELECT id, total, metodo, cliente_nome FROM vendas ORDER BY id DESC LIMIT 15", conn)
     st.dataframe(df_h, use_container_width=True, hide_index=True)
 
 elif st.session_state.pagina == "📊":
-    st.write("### 📊 Relatório")
+    st.write("### 📊 Financeiro")
     with get_connection() as conn:
-        v = conn.execute("SELECT SUM(total) FROM vendas").fetchone()[0] or 0
-        f = conn.execute("SELECT SUM(saldo_devedor) FROM clientes").fetchone()[0] or 0
-    st.metric("Vendido", f"R${v:.2f}")
-    st.metric("Pendente", f"R${f:.2f}")
-    if st.button("SAIR"):
+        v_total = conn.execute("SELECT SUM(total) FROM vendas").fetchone()[0] or 0
+        f_total = conn.execute("SELECT SUM(saldo_devedor) FROM clientes").fetchone()[0] or 0
+    st.metric("Total em Vendas", f"R${v_total:.2f}")
+    st.metric("Total a Receber", f"R${f_total:.2f}")
+    if st.button("LOGOUT"):
         st.session_state.autenticado = False
         st.rerun()
