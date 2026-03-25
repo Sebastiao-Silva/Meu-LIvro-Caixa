@@ -17,10 +17,16 @@ st.set_page_config(
 # CSS PARA FORÇAR OS 5 BOTÕES LADO A LADO E REMOVER ESPAÇOS
 st.markdown("""
     <style>
+        /* Trava a largura total permitida e centraliza */
+        .main {
+            max-width: 360px !important;
+            margin: 0 auto;
+        }
+
         /* Remove paddings laterais para ganhar largura no celular */
         .block-container { 
-            padding: 0.5rem 0.2rem 5rem 0.2rem !important; 
-            max-width: 100% !important;
+            padding: 0.5rem 0.1rem 5rem 0.1rem !important; 
+            max-width: 360px !important;
         }
         
         /* FORÇA O CONTAINER DE COLUNAS A SER UM FLEXBOX SEM QUEBRA */
