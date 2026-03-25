@@ -20,7 +20,7 @@ st.markdown("""
         /* Remove paddings laterais para ganhar largura no celular */
         .block-container { 
             padding: 0.5rem 0.2rem 5rem 0.2rem !important; 
-            max-width: 50% !important;
+            max-width: 100% !important;
         }
         
         /* FORÇA O CONTAINER DE COLUNAS A SER UM FLEXBOX SEM QUEBRA */
@@ -151,8 +151,8 @@ st.markdown("<hr style='margin:5px 0;'>", unsafe_allow_html=True)
 # --- TELA: PDV ---
 if st.session_state.pagina == "🛒":
     atalhos = {
-        "SUCO": 5.0, "REFRI": 6.0, "SALGADO": 8.0, "PIPOCA": 7.0,
-        "NATU": 8.0, "P.QJO": 7.0, "SAND": 9.5, "BOLO": 8.0
+        "SUCO": 6.0, "REFRI": 6.0, "SALGADO": 8.0, "PIPOCA": 7.0,
+        "NATU": 8.0, "P.QJO": 7.0, "SAND": 8.0, "BOLO": 9.0
     }
     # Botões de venda em 2 colunas para o celular
     grid = st.columns(2)
