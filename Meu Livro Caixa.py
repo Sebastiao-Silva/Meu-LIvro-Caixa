@@ -34,7 +34,7 @@ st.markdown("""
         
         /* CADA COLUNA OCUPA EXATAMENTE 20% DA LARGURA */
         [data-testid="column"] {
-            width: 20% !important;
+            width: 2% !important;
             flex: 1 1 auto !important;
             min-width: 0px !important;
             padding: 0px !important;
