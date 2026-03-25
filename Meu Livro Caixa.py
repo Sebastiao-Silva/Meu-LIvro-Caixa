@@ -132,7 +132,8 @@ if not st.session_state.autenticado:
 st.markdown(f"<p class='app-header'>🐻 Bear Snack | {st.session_state.pagina}</p>", unsafe_allow_html=True)
 
 m_cols = st.columns(5)
-if m_cols[0].button("🛒", key="m1"): st.session_state.pagina = "🛒"; st.rerun(), if m_cols[1].button("👥", key="m2"): st.session_state.pagina = "👥"; st.rerun()
+if m_cols[0].button("🛒", key="m1"): st.session_state.pagina = "🛒"; st.rerun()
+if m_cols[1].button("👥", key="m2"): st.session_state.pagina = "👥"; st.rerun()
 if m_cols[2].button("🍱", key="m3"): st.session_state.pagina = "🍱"; st.rerun()
 if m_cols[3].button("📜", key="m4"): st.session_state.pagina = "📜"; st.rerun()
 if m_cols[4].button("📊", key="m5"): st.session_state.pagina = "📊"; st.rerun()
