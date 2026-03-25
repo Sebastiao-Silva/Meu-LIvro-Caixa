@@ -14,74 +14,89 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS REFINADO PARA BOTÕES LARGOS E MENU COMPACTO
+# CSS PROFISSIONAL: BOTÕES COM MELHOR PROPORÇÃO E TEXTO INTEIRO
 st.markdown("""
     <style>
-        /* Trava a largura total da página */
+        /* Trava a largura e centraliza o app */
         .main {
             max-width: 360px !important;
             margin: 0 auto;
         }
 
-        /* Remove espaços inúteis nas bordas */
+        /* Ajuste de respiro lateral */
         .block-container { 
-            padding: 0.5rem 0.05rem 5rem 0.05rem !important; 
+            padding: 0.5rem 0.3rem 5rem 0.3rem !important; 
             max-width: 360px !important;
         }
         
-        /* MENU SUPERIOR: GRID SEM ESPAÇAMENTO */
+        /* MENU SUPERIOR: GRID 1x5 */
         [data-testid="stHorizontalBlock"] {
             display: grid !important;
             grid-template-columns: repeat(5, 1fr) !important;
-            gap: 0px !important; /* Zero espaço entre colunas do menu */
+            gap: 4px !important;
             width: 100% !important;
+            margin-bottom: 10px !important;
         }
         
-        /* COLUNAS DO MENU */
         [data-testid="column"] {
             width: 100% !important;
             flex: none !important;
             min-width: 0px !important;
-            padding: 0px 1px !important; /* Espaçamento mínimo para não grudar */
+            padding: 0px !important;
         }
 
-        /* BOTÕES DO MENU (ÍCONES) */
+        /* ESTILO DOS BOTÕES DO MENU (SUPERIOR) */
         [data-testid="column"] div.stButton > button {
-            border-radius: 2px;
-            padding: 0px !important;
-            height: 50px !important; 
+            border-radius: 8px;
+            height: 55px !important; 
             width: 100% !important;
-            font-size: 18px !important; /* Fonte menor para não esmagar */
+            font-size: 22px !important; 
             background-color: #262730;
             border: 1px solid #464855;
-            margin: 0px !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* BOTÕES DE PRODUTOS (MAIORES PARA O TEXTO CABER) */
-        .stMain div[data-testid="column"] + div[data-testid="column"] button,
+        /* BOTÕES DE PRODUTOS (MAIS ALTOS E PROFISSIONAIS) */
+        /* Alvo: botões dentro da grade de produtos do PDV */
         div.stButton > button[key^="btn_"] {
-            font-size: 14px !important; /* Fonte legível para o produto */
-            height: 55px !important;
-            line-height: 1.2 !important;
+            height: 85px !important; /* Aumentado para não ficar achatado */
+            border-radius: 10px !important;
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            line-height: 1.3 !important;
+            background: linear-gradient(145deg, #2e313c, #262730) !important;
+            border: 1px solid #464855 !important;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2) !important;
+            white-space: pre-wrap !important; /* Permite quebra de linha entre nome e preço */
         }
 
-        /* COR DE DESTAQUE */
-        div.stButton > button:active, div.stButton > button:focus {
+        /* ESTILO DO BOTÃO DE CONFIRMAÇÃO */
+        div.stButton > button[type="primary"] {
+            height: 60px !important;
+            font-size: 18px !important;
+            font-weight: bold !important;
+            letter-spacing: 1px !important;
+        }
+
+        /* CORES DE INTERAÇÃO */
+        div.stButton > button:active {
             background-color: #ff4b4b !important;
-            border-color: #ff4b4b !important;
-            color: white !important;
+            transform: scale(0.98);
         }
 
-        /* ESCONDE INTERFACE PADRÃO */
+        /* ESCONDER ELEMENTOS NATIVOS */
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
         footer {visibility: hidden;}
         
         .app-header {
-            font-size: 14px !important;
+            font-size: 16px !important;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 2px;
+            margin-bottom: 8px;
+            color: #f0f2f6;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -119,7 +134,7 @@ def iniciar_banco():
 iniciar_banco()
 
 # ==========================================
-# 3. CONTROLE DE ESTADO
+# 3. CONTROLE DE ESTADO E NAVEGAÇÃO
 # ==========================================
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'pagina' not in st.session_state: st.session_state.pagina = "🛒"
@@ -136,7 +151,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. MENU SUPERIOR
+# 4. MENU DE NAVEGAÇÃO SUPERIOR
 # ==========================================
 st.markdown(f"<p class='app-header'>🐻 Bear Snack | {st.session_state.pagina}</p>", unsafe_allow_html=True)
 
@@ -147,92 +162,117 @@ if m3.button("🍱"): st.session_state.pagina = "🍱"; st.rerun()
 if m4.button("📜"): st.session_state.pagina = "📜"; st.rerun()
 if m5.button("📊"): st.session_state.pagina = "📊"; st.rerun()
 
-st.markdown("<hr style='margin:2px 0;'>", unsafe_allow_html=True)
+st.markdown("<hr style='margin:5px 0; border-color: #464855;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. PÁGINAS
+# 5. CONTEÚDO DAS PÁGINAS
 # ==========================================
 
+# --- TELA: PDV ---
 if st.session_state.pagina == "🛒":
-    # Atalhos compactos para não quebrar texto
+    # Nomes inteiros conforme solicitado
     atalhos = {
-        "SUCO": 6.0, "REFRI": 6.0, "SALG": 8.0, "PIPO": 7.0,
-        "NATU": 8.0, "P.QJO": 7.0, "SAND": 8.0, "BOLO": 9.0
+        "SUCO": 6.0, "REFRI": 6.0, "SALGADO": 8.0, "PIPOCA": 7.0,
+        "SUCO NAT.": 8.0, "P. QUEIJO": 7.0, "SANDUÍCHE": 8.0, "BOLO": 9.0
     }
+    
     grid = st.columns(2)
     for i, (item, preco) in enumerate(atalhos.items()):
-        if grid[i % 2].button(f"{item} - R${preco}", key=f"btn_{item}", use_container_width=True):
+        # \n força o preço para a linha de baixo, melhorando a estética do botão alto
+        if grid[i % 2].button(f"{item}\nR${preco:.2f}", key=f"btn_{item}", use_container_width=True):
             st.session_state.desc_venda = item
             st.session_state.valor_venda = preco
             st.rerun()
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
     with st.container(border=True):
-        v_item = st.text_input("Item", value=st.session_state.desc_venda)
-        v_pre = st.number_input("R$", value=st.session_state.valor_venda)
-        v_mod = st.selectbox("Pgto", ["DINHEIRO", "PIX", "CARTÃO", "FIADO"])
+        v_item = st.text_input("Descrição do Item", value=st.session_state.desc_venda)
+        v_pre = st.number_input("Valor Unitário (R$)", value=st.session_state.valor_venda, step=0.5)
+        v_mod = st.selectbox("Forma de Pagamento", ["DINHEIRO", "PIX", "CARTÃO", "FIADO"])
         
         v_cli = None
         if v_mod == "FIADO":
             with get_connection() as conn:
                 clis = pd.read_sql_query("SELECT nome FROM clientes ORDER BY nome", conn)['nome'].tolist()
-            v_cli = st.selectbox("Quem?", clis if clis else ["Vazio"])
+            v_cli = st.selectbox("Selecionar Cliente", clis if clis else ["Nenhum cliente cadastrado"])
         
-        if st.button("FINALIZAR 🚀", use_container_width=True, type="primary"):
-            agora = int(datetime.now().timestamp() * 1000)
-            baixada = 0 if v_mod == "FIADO" else 1
-            with get_connection() as conn:
-                conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,?,?)",
-                            (agora, v_pre, v_mod, v_item, baixada, v_cli))
-                if v_mod == "FIADO" and v_cli:
-                    conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (v_pre, v_cli))
-                conn.commit()
-            st.success("OK!")
-            st.session_state.desc_venda = ""
-            st.session_state.valor_venda = 0.0
-            st.rerun()
+        if st.button("CONFIRMAR VENDA 🚀", use_container_width=True, type="primary"):
+            if v_mod == "FIADO" and (not v_cli or v_cli == "Nenhum cliente cadastrado"):
+                st.error("Selecione um cliente para fiado!")
+            else:
+                agora = int(datetime.now().timestamp() * 1000)
+                baixada = 0 if v_mod == "FIADO" else 1
+                with get_connection() as conn:
+                    conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,?,?)",
+                                (agora, v_pre, v_mod, v_item, baixada, v_cli))
+                    if v_mod == "FIADO" and v_cli:
+                        conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (v_pre, v_cli))
+                    conn.commit()
+                st.success("Venda registrada!")
+                st.session_state.desc_venda = ""
+                st.session_state.valor_venda = 0.0
+                st.rerun()
 
+# --- TELA: CADERNETA ---
 elif st.session_state.pagina == "👥":
-    st.write("### 👥 Devedores")
-    with st.expander("Novo Cliente"):
-        n = st.text_input("Nome").upper()
-        if st.button("SALVAR"):
-            with get_connection() as conn:
-                conn.execute("INSERT INTO clientes (nome, tipo) VALUES (?, 'ALUNO')", (n,))
-            st.rerun()
+    st.write("### 👥 Gestão de Clientes")
+    with st.expander("➕ Cadastrar Novo Cliente"):
+        n = st.text_input("Nome do Cliente").upper()
+        if st.button("SALVAR CADASTRO", use_container_width=True):
+            if n:
+                try:
+                    with get_connection() as conn:
+                        conn.execute("INSERT INTO clientes (nome, tipo) VALUES (?, 'ALUNO')", (n,))
+                    st.success("Cliente cadastrado!"); st.rerun()
+                except: st.error("Nome já existe!")
+    
     with get_connection() as conn:
-        df_cli = pd.read_sql_query("SELECT nome, saldo_devedor FROM clientes WHERE saldo_devedor > 0 ORDER BY nome", conn)
+        df_cli = pd.read_sql_query("SELECT nome, saldo_devedor FROM clientes WHERE saldo_devedor > 0 ORDER BY saldo_devedor DESC", conn)
     st.dataframe(df_cli, use_container_width=True, hide_index=True)
 
+# --- TELA: BANDEJA ---
 elif st.session_state.pagina == "🍱":
-    st.write("### 🍱 Bandeja")
-    val_b = st.number_input("R$", value=15.0)
+    st.write("### 🍱 Lançamento de Bandeja")
+    val_b = st.number_input("Valor da Bandeja R$", value=15.0)
     with get_connection() as conn:
         alunos = pd.read_sql_query("SELECT nome FROM clientes WHERE tipo='BANDEJA'", conn)['nome'].tolist()
+    
     sel = []
-    for a in alunos:
-        if st.checkbox(a, key=f"chk_{a}"): sel.append(a)
-    if st.button("LANÇAR TUDO"):
-        agora = int(datetime.now().timestamp() * 1000)
-        with get_connection() as conn:
-            for n in sel:
-                conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,0,?)", (agora, val_b, "FIADO", "BANDEJA", n))
-                conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (val_b, n))
-            conn.commit()
-        st.rerun()
+    if alunos:
+        for a in alunos:
+            if st.checkbox(a, key=f"chk_{a}"): sel.append(a)
+        
+        if st.button("LANÇAR SELECIONADOS", use_container_width=True, type="primary"):
+            agora = int(datetime.now().timestamp() * 1000)
+            with get_connection() as conn:
+                for n in sel:
+                    conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,0,?)", (agora, val_b, "FIADO", "BANDEJA", n))
+                    conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (val_b, n))
+                conn.commit()
+            st.success("Bandejas lançadas!"); st.rerun()
+    else:
+        st.info("Nenhum cliente do tipo 'BANDEJA' encontrado.")
 
+# --- TELA: HISTÓRICO ---
 elif st.session_state.pagina == "📜":
-    st.write("### 📜 Recentes")
+    st.write("### 📜 Últimas Movimentações")
     with get_connection() as conn:
-        df_h = pd.read_sql_query("SELECT total, metodo, cliente_nome FROM vendas ORDER BY id DESC LIMIT 10", conn)
-    st.table(df_h)
+        df_h = pd.read_sql_query("SELECT id, total, metodo, cliente_nome FROM vendas ORDER BY id DESC LIMIT 15", conn)
+    st.dataframe(df_h, use_container_width=True, hide_index=True)
 
+# --- TELA: RELATÓRIOS ---
 elif st.session_state.pagina == "📊":
-    st.write("### 📊 Financeiro")
+    st.write("### 📊 Resumo Financeiro")
     with get_connection() as conn:
         v_total = conn.execute("SELECT SUM(total) FROM vendas").fetchone()[0] or 0
         f_total = conn.execute("SELECT SUM(saldo_devedor) FROM clientes").fetchone()[0] or 0
-    st.metric("Total", f"R${v_total:.2f}")
-    st.metric("Fiado", f"R${f_total:.2f}")
-    if st.button("SAIR"):
+    
+    c1, c2 = st.columns(2)
+    c1.metric("Total Geral", f"R${v_total:.2f}")
+    c2.metric("Pendente (Fiado)", f"R${f_total:.2f}")
+    
+    st.markdown("---")
+    if st.button("LOGOUT (SAIR)", use_container_width=True):
         st.session_state.autenticado = False
         st.rerun()
