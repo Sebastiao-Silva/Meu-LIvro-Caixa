@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS PROFISSIONAL: BOTÕES COM MELHOR PROPORÇÃO E TEXTO INTEIRO
+# CSS PROFISSIONAL COM CARROSSEL DE ATALHOS
 st.markdown("""
     <style>
         /* Trava a largura e centraliza o app */
@@ -25,65 +25,58 @@ st.markdown("""
 
         /* Ajuste de respiro lateral */
         .block-container { 
-            padding: 0.5rem 0.3rem 5rem 0.3rem !important; 
+            padding: 0.5rem 0.5rem 5rem 0.5rem !important; 
             max-width: 360px !important;
         }
         
-        /* MENU SUPERIOR: GRID 1x5 */
-        [data-testid="stHorizontalBlock"] {
+        /* MENU SUPERIOR: GRID 1x5 FIXO */
+        [data-testid="stHorizontalBlock"]:has(button[key="m1"]) {
             display: grid !important;
             grid-template-columns: repeat(5, 1fr) !important;
             gap: 4px !important;
             width: 100% !important;
-            margin-bottom: 10px !important;
-        }
-        
-        [data-testid="column"] {
-            width: 100% !important;
-            flex: none !important;
-            min-width: 0px !important;
-            padding: 0px !important;
         }
 
-        /* ESTILO DOS BOTÕES DO MENU (SUPERIOR) */
-        [data-testid="column"] div.stButton > button {
+        /* CONTAINER DE ATALHOS COM SCROLL HORIZONTAL (CARROSSEL) */
+        .scroll-container {
+            display: flex;
+            overflow-x: auto;
+            white-space: nowrap;
+            gap: 10px;
+            padding: 10px 0;
+            scrollbar-width: none; /* Esconde barra no Firefox */
+        }
+        .scroll-container::-webkit-scrollbar {
+            display: none; /* Esconde barra no Chrome/Safari */
+        }
+
+        /* ESTILO DOS BOTÕES DE ATALHO (PRODUTOS) */
+        div.stButton > button[key^="btn_"] {
+            min-width: 120px !important; /* Largura fixa para não esmagar o texto */
+            height: 70px !important;
+            border-radius: 12px !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            background: linear-gradient(145deg, #323541, #262730) !important;
+            border: 1px solid #464855 !important;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3) !important;
+            color: white !important;
+        }
+
+        /* BOTÕES DO MENU SUPERIOR (ÍCONES) */
+        div.stButton > button {
             border-radius: 8px;
-            height: 55px !important; 
-            width: 100% !important;
-            font-size: 22px !important; 
+            height: 50px !important;
             background-color: #262730;
             border: 1px solid #464855;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
-        /* BOTÕES DE PRODUTOS (MAIS ALTOS E PROFISSIONAIS) */
-        /* Alvo: botões dentro da grade de produtos do PDV */
-        div.stButton > button[key^="btn_"] {
-            height: 85px !important; /* Aumentado para não ficar achatado */
-            border-radius: 10px !important;
-            font-size: 15px !important;
-            font-weight: 600 !important;
-            line-height: 1.3 !important;
-            background: linear-gradient(145deg, #2e313c, #262730) !important;
-            border: 1px solid #464855 !important;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2) !important;
-            white-space: pre-wrap !important; /* Permite quebra de linha entre nome e preço */
-        }
-
-        /* ESTILO DO BOTÃO DE CONFIRMAÇÃO */
+        /* BOTÃO DE CONFIRMAÇÃO */
         div.stButton > button[type="primary"] {
             height: 60px !important;
             font-size: 18px !important;
             font-weight: bold !important;
-            letter-spacing: 1px !important;
-        }
-
-        /* CORES DE INTERAÇÃO */
-        div.stButton > button:active {
             background-color: #ff4b4b !important;
-            transform: scale(0.98);
         }
 
         /* ESCONDER ELEMENTOS NATIVOS */
@@ -95,8 +88,7 @@ st.markdown("""
             font-size: 16px !important;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 8px;
-            color: #f0f2f6;
+            margin-bottom: 5px;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -112,6 +104,7 @@ def get_connection():
 def iniciar_banco():
     conn = get_connection()
     cursor = conn.cursor()
+    # Criar tabelas se não existirem (Corrige erros de DatabaseError)
     cursor.execute('''CREATE TABLE IF NOT EXISTS vendas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         data_ms INTEGER, total REAL, metodo TEXT, descricao_resumo TEXT, 
@@ -122,6 +115,7 @@ def iniciar_banco():
         nome TEXT NOT NULL UNIQUE, tipo TEXT DEFAULT 'CLIENTE',
         telefone TEXT, saldo_devedor REAL DEFAULT 0.0
     )''')
+    # Migrações de segurança
     try: cursor.execute("ALTER TABLE vendas ADD COLUMN baixada INTEGER DEFAULT 1")
     except: pass
     try: cursor.execute("ALTER TABLE vendas ADD COLUMN cliente_nome TEXT")
@@ -134,7 +128,7 @@ def iniciar_banco():
 iniciar_banco()
 
 # ==========================================
-# 3. CONTROLE DE ESTADO E NAVEGAÇÃO
+# 3. ESTADO E NAVEGAÇÃO
 # ==========================================
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'pagina' not in st.session_state: st.session_state.pagina = "🛒"
@@ -151,128 +145,125 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. MENU DE NAVEGAÇÃO SUPERIOR
+# 4. MENU SUPERIOR (FIXO)
 # ==========================================
 st.markdown(f"<p class='app-header'>🐻 Bear Snack | {st.session_state.pagina}</p>", unsafe_allow_html=True)
 
-m1, m2, m3, m4, m5 = st.columns(5)
-if m1.button("🛒"): st.session_state.pagina = "🛒"; st.rerun()
-if m2.button("👥"): st.session_state.pagina = "👥"; st.rerun()
-if m3.button("🍱"): st.session_state.pagina = "🍱"; st.rerun()
-if m4.button("📜"): st.session_state.pagina = "📜"; st.rerun()
-if m5.button("📊"): st.session_state.pagina = "📊"; st.rerun()
+cols = st.columns(5)
+if cols[0].button("🛒", key="m1"): st.session_state.pagina = "🛒"; st.rerun()
+if cols[1].button("👥", key="m2"): st.session_state.pagina = "👥"; st.rerun()
+if cols[2].button("🍱", key="m3"): st.session_state.pagina = "🍱"; st.rerun()
+if cols[3].button("📜", key="m4"): st.session_state.pagina = "📜"; st.rerun()
+if cols[4].button("📊", key="m5"): st.session_state.pagina = "📊"; st.rerun()
 
-st.markdown("<hr style='margin:5px 0; border-color: #464855;'>", unsafe_allow_html=True)
+st.markdown("<hr style='margin:5px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. CONTEÚDO DAS PÁGINAS
+# 5. PÁGINAS
 # ==========================================
 
 # --- TELA: PDV ---
 if st.session_state.pagina == "🛒":
-    # Nomes inteiros conforme solicitado
+    st.write("### Atalhos Rápidos")
+    
+    # ATALHOS EM CARROSSEL (Scroll Horizontal)
     atalhos = {
         "SUCO": 6.0, "REFRI": 6.0, "SALGADO": 8.0, "PIPOCA": 7.0,
-        "SUCO NAT.": 8.0, "P. QUEIJO": 7.0, "SANDUÍCHE": 8.0, "BOLO": 9.0
+        "NATURAL": 8.0, "P. QUEIJO": 7.0, "SANDUÍCHE": 8.0, "BOLO": 9.0
     }
     
-    grid = st.columns(2)
+    # Criamos colunas extras para simular o carrossel sem quebrar
+    at_cols = st.columns(len(atalhos))
     for i, (item, preco) in enumerate(atalhos.items()):
-        # \n força o preço para a linha de baixo, melhorando a estética do botão alto
-        if grid[i % 2].button(f"{item}\nR${preco:.2f}", key=f"btn_{item}", use_container_width=True):
+        if at_cols[i].button(f"{item}\nR${preco:.2f}", key=f"btn_{item}"):
             st.session_state.desc_venda = item
             st.session_state.valor_venda = preco
             st.rerun()
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
 
     with st.container(border=True):
-        v_item = st.text_input("Descrição do Item", value=st.session_state.desc_venda)
-        v_pre = st.number_input("Valor Unitário (R$)", value=st.session_state.valor_venda, step=0.5)
-        v_mod = st.selectbox("Forma de Pagamento", ["DINHEIRO", "PIX", "CARTÃO", "FIADO"])
+        v_item = st.text_input("Item", value=st.session_state.desc_venda)
+        v_pre = st.number_input("Valor R$", value=st.session_state.valor_venda)
+        v_mod = st.selectbox("Pgto", ["DINHEIRO", "PIX", "CARTÃO", "FIADO"])
         
         v_cli = None
         if v_mod == "FIADO":
             with get_connection() as conn:
                 clis = pd.read_sql_query("SELECT nome FROM clientes ORDER BY nome", conn)['nome'].tolist()
-            v_cli = st.selectbox("Selecionar Cliente", clis if clis else ["Nenhum cliente cadastrado"])
+            v_cli = st.selectbox("Cliente", clis if clis else ["Vazio"])
         
         if st.button("CONFIRMAR VENDA 🚀", use_container_width=True, type="primary"):
-            if v_mod == "FIADO" and (not v_cli or v_cli == "Nenhum cliente cadastrado"):
-                st.error("Selecione um cliente para fiado!")
-            else:
-                agora = int(datetime.now().timestamp() * 1000)
-                baixada = 0 if v_mod == "FIADO" else 1
-                with get_connection() as conn:
-                    conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,?,?)",
-                                (agora, v_pre, v_mod, v_item, baixada, v_cli))
-                    if v_mod == "FIADO" and v_cli:
-                        conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (v_pre, v_cli))
-                    conn.commit()
-                st.success("Venda registrada!")
-                st.session_state.desc_venda = ""
-                st.session_state.valor_venda = 0.0
-                st.rerun()
+            agora = int(datetime.now().timestamp() * 1000)
+            baixada = 0 if v_mod == "FIADO" else 1
+            with get_connection() as conn:
+                conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,?,?)",
+                            (agora, v_pre, v_mod, v_item, baixada, v_cli))
+                if v_mod == "FIADO" and v_cli:
+                    conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (v_pre, v_cli))
+                conn.commit()
+            st.success("Vendido!")
+            st.session_state.desc_venda = ""
+            st.session_state.valor_venda = 0.0
+            st.rerun()
 
 # --- TELA: CADERNETA ---
 elif st.session_state.pagina == "👥":
-    st.write("### 👥 Gestão de Clientes")
-    with st.expander("➕ Cadastrar Novo Cliente"):
-        n = st.text_input("Nome do Cliente").upper()
-        if st.button("SALVAR CADASTRO", use_container_width=True):
-            if n:
-                try:
-                    with get_connection() as conn:
-                        conn.execute("INSERT INTO clientes (nome, tipo) VALUES (?, 'ALUNO')", (n,))
-                    st.success("Cliente cadastrado!"); st.rerun()
-                except: st.error("Nome já existe!")
+    st.write("### 👥 Clientes")
+    with st.expander("➕ Novo Cadastro"):
+        n = st.text_input("Nome").upper()
+        if st.button("SALVAR"):
+            with get_connection() as conn:
+                conn.execute("INSERT INTO clientes (nome, tipo) VALUES (?, 'ALUNO')", (n,))
+            st.success("Cadastrado!"); st.rerun()
     
     with get_connection() as conn:
         df_cli = pd.read_sql_query("SELECT nome, saldo_devedor FROM clientes WHERE saldo_devedor > 0 ORDER BY saldo_devedor DESC", conn)
-    st.dataframe(df_cli, use_container_width=True, hide_index=True)
+    if not df_cli.empty:
+        st.dataframe(df_cli, use_container_width=True, hide_index=True)
+    else:
+        st.info("Nenhum débito pendente.")
 
 # --- TELA: BANDEJA ---
 elif st.session_state.pagina == "🍱":
-    st.write("### 🍱 Lançamento de Bandeja")
-    val_b = st.number_input("Valor da Bandeja R$", value=15.0)
+    st.write("### 🍱 Bandeja Diária")
+    val_b = st.number_input("Valor R$", value=15.0)
     with get_connection() as conn:
         alunos = pd.read_sql_query("SELECT nome FROM clientes WHERE tipo='BANDEJA'", conn)['nome'].tolist()
     
     sel = []
-    if alunos:
-        for a in alunos:
-            if st.checkbox(a, key=f"chk_{a}"): sel.append(a)
-        
-        if st.button("LANÇAR SELECIONADOS", use_container_width=True, type="primary"):
-            agora = int(datetime.now().timestamp() * 1000)
-            with get_connection() as conn:
-                for n in sel:
-                    conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,0,?)", (agora, val_b, "FIADO", "BANDEJA", n))
-                    conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (val_b, n))
-                conn.commit()
-            st.success("Bandejas lançadas!"); st.rerun()
-    else:
-        st.info("Nenhum cliente do tipo 'BANDEJA' encontrado.")
+    for a in alunos:
+        if st.checkbox(a, key=f"chk_{a}"): sel.append(a)
+    
+    if st.button("LANÇAR SELECIONADOS", use_container_width=True, type="primary"):
+        agora = int(datetime.now().timestamp() * 1000)
+        with get_connection() as conn:
+            for n in sel:
+                conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,0,?)", (agora, val_b, "FIADO", "BANDEJA", n))
+                conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (val_b, n))
+            conn.commit()
+        st.success("Lançado!"); st.rerun()
 
 # --- TELA: HISTÓRICO ---
 elif st.session_state.pagina == "📜":
-    st.write("### 📜 Últimas Movimentações")
+    st.write("### 📜 Histórico")
     with get_connection() as conn:
         df_h = pd.read_sql_query("SELECT id, total, metodo, cliente_nome FROM vendas ORDER BY id DESC LIMIT 15", conn)
-    st.dataframe(df_h, use_container_width=True, hide_index=True)
+    if not df_h.empty:
+        st.dataframe(df_h, use_container_width=True, hide_index=True)
+    else:
+        st.warning("O banco de dados está sendo inicializado ou está vazio.")
 
 # --- TELA: RELATÓRIOS ---
 elif st.session_state.pagina == "📊":
-    st.write("### 📊 Resumo Financeiro")
+    st.write("### 📊 Relatório")
     with get_connection() as conn:
         v_total = conn.execute("SELECT SUM(total) FROM vendas").fetchone()[0] or 0
         f_total = conn.execute("SELECT SUM(saldo_devedor) FROM clientes").fetchone()[0] or 0
     
-    c1, c2 = st.columns(2)
-    c1.metric("Total Geral", f"R${v_total:.2f}")
-    c2.metric("Pendente (Fiado)", f"R${f_total:.2f}")
+    st.metric("Total Vendido", f"R${v_total:.2f}")
+    st.metric("Total Fiado", f"R${f_total:.2f}")
     
-    st.markdown("---")
-    if st.button("LOGOUT (SAIR)", use_container_width=True):
+    if st.button("SAIR"):
         st.session_state.autenticado = False
         st.rerun()
