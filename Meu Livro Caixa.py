@@ -14,67 +14,71 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS AVANÇADO PARA FORÇAR GRID 1x5 INQUEBRÁVEL
+# CSS REFINADO PARA BOTÕES LARGOS E MENU COMPACTO
 st.markdown("""
     <style>
-        /* Trava a largura total da página em 360px (Moto G30) */
+        /* Trava a largura total da página */
         .main {
             max-width: 360px !important;
             margin: 0 auto;
         }
 
-        /* Remove margens internas que causam a quebra de linha */
+        /* Remove espaços inúteis nas bordas */
         .block-container { 
-            padding: 0.5rem 0.1rem 5rem 0.1rem !important; 
+            padding: 0.5rem 0.05rem 5rem 0.05rem !important; 
             max-width: 360px !important;
         }
         
-        /* FORÇA O CONTAINER DE COLUNAS A SER UM GRID DE 5 COLUNAS FIXAS */
+        /* MENU SUPERIOR: GRID SEM ESPAÇAMENTO */
         [data-testid="stHorizontalBlock"] {
             display: grid !important;
             grid-template-columns: repeat(5, 1fr) !important;
-            gap: 2px !important;
+            gap: 0px !important; /* Zero espaço entre colunas do menu */
             width: 100% !important;
         }
         
-        /* GARANTE QUE AS COLUNAS NÃO TENTEM SE REORGANIZAR */
+        /* COLUNAS DO MENU */
         [data-testid="column"] {
             width: 100% !important;
             flex: none !important;
             min-width: 0px !important;
-            padding: 0px !important;
+            padding: 0px 1px !important; /* Espaçamento mínimo para não grudar */
         }
 
-        /* ESTILO DOS BOTÕES DO MENU (ALTURA PARA O POLEGAR) */
-        div.stButton > button {
-            border-radius: 4px;
+        /* BOTÕES DO MENU (ÍCONES) */
+        [data-testid="column"] div.stButton > button {
+            border-radius: 2px;
             padding: 0px !important;
-            height: 60px !important; 
+            height: 50px !important; 
             width: 100% !important;
-            font-size: 20px !important; 
+            font-size: 18px !important; /* Fonte menor para não esmagar */
             background-color: #262730;
             border: 1px solid #464855;
             margin: 0px !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
-        /* COR DE DESTAQUE AO CLICAR */
+        /* BOTÕES DE PRODUTOS (MAIORES PARA O TEXTO CABER) */
+        .stMain div[data-testid="column"] + div[data-testid="column"] button,
+        div.stButton > button[key^="btn_"] {
+            font-size: 14px !important; /* Fonte legível para o produto */
+            height: 55px !important;
+            line-height: 1.2 !important;
+        }
+
+        /* COR DE DESTAQUE */
         div.stButton > button:active, div.stButton > button:focus {
             background-color: #ff4b4b !important;
             border-color: #ff4b4b !important;
             color: white !important;
         }
 
-        /* ESCONDE INTERFACE PADRÃO DO STREAMLIT */
+        /* ESCONDE INTERFACE PADRÃO */
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
         footer {visibility: hidden;}
         
-        /* TÍTULO COMPACTO */
         .app-header {
-            font-size: 15px !important;
+            font-size: 14px !important;
             font-weight: bold;
             text-align: center;
             margin-bottom: 2px;
@@ -93,19 +97,16 @@ def get_connection():
 def iniciar_banco():
     conn = get_connection()
     cursor = conn.cursor()
-    # Tabela Vendas
     cursor.execute('''CREATE TABLE IF NOT EXISTS vendas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         data_ms INTEGER, total REAL, metodo TEXT, descricao_resumo TEXT, 
         baixada INTEGER DEFAULT 1, cliente_nome TEXT
     )''')
-    # Tabela Clientes
     cursor.execute('''CREATE TABLE IF NOT EXISTS clientes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL UNIQUE, tipo TEXT DEFAULT 'CLIENTE',
         telefone TEXT, saldo_devedor REAL DEFAULT 0.0
     )''')
-    # Migrações
     try: cursor.execute("ALTER TABLE vendas ADD COLUMN baixada INTEGER DEFAULT 1")
     except: pass
     try: cursor.execute("ALTER TABLE vendas ADD COLUMN cliente_nome TEXT")
@@ -118,7 +119,7 @@ def iniciar_banco():
 iniciar_banco()
 
 # ==========================================
-# 3. CONTROLE DE ESTADO E NAVEGAÇÃO
+# 3. CONTROLE DE ESTADO
 # ==========================================
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'pagina' not in st.session_state: st.session_state.pagina = "🛒"
@@ -135,11 +136,10 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. MENU DE NAVEGAÇÃO SUPERIOR (FIXO)
+# 4. MENU SUPERIOR
 # ==========================================
 st.markdown(f"<p class='app-header'>🐻 Bear Snack | {st.session_state.pagina}</p>", unsafe_allow_html=True)
 
-# Grid de 5 colunas inquebrável para mobile
 m1, m2, m3, m4, m5 = st.columns(5)
 if m1.button("🛒"): st.session_state.pagina = "🛒"; st.rerun()
 if m2.button("👥"): st.session_state.pagina = "👥"; st.rerun()
@@ -150,35 +150,34 @@ if m5.button("📊"): st.session_state.pagina = "📊"; st.rerun()
 st.markdown("<hr style='margin:2px 0;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. CONTEÚDO DAS PÁGINAS
+# 5. PÁGINAS
 # ==========================================
 
-# --- TELA: PDV ---
 if st.session_state.pagina == "🛒":
+    # Atalhos compactos para não quebrar texto
     atalhos = {
-        "SUCO": 6.0, "REFRI": 6.0, "SALGADO": 8.0, "PIPOCA": 7.0,
+        "SUCO": 6.0, "REFRI": 6.0, "SALG": 8.0, "PIPO": 7.0,
         "NATU": 8.0, "P.QJO": 7.0, "SAND": 8.0, "BOLO": 9.0
     }
-    # Grade de produtos 2 colunas
     grid = st.columns(2)
     for i, (item, preco) in enumerate(atalhos.items()):
-        if grid[i % 2].button(f"{item}\nR${preco}", key=f"btn_{item}", use_container_width=True):
+        if grid[i % 2].button(f"{item} - R${preco}", key=f"btn_{item}", use_container_width=True):
             st.session_state.desc_venda = item
             st.session_state.valor_venda = preco
             st.rerun()
 
     with st.container(border=True):
-        v_item = st.text_input("Descrição", value=st.session_state.desc_venda)
-        v_pre = st.number_input("Preço R$", value=st.session_state.valor_venda)
+        v_item = st.text_input("Item", value=st.session_state.desc_venda)
+        v_pre = st.number_input("R$", value=st.session_state.valor_venda)
         v_mod = st.selectbox("Pgto", ["DINHEIRO", "PIX", "CARTÃO", "FIADO"])
         
         v_cli = None
         if v_mod == "FIADO":
             with get_connection() as conn:
                 clis = pd.read_sql_query("SELECT nome FROM clientes ORDER BY nome", conn)['nome'].tolist()
-            v_cli = st.selectbox("Cliente?", clis if clis else ["Vazio"])
+            v_cli = st.selectbox("Quem?", clis if clis else ["Vazio"])
         
-        if st.button("CONFIRMAR VENDA 🚀", use_container_width=True, type="primary"):
+        if st.button("FINALIZAR 🚀", use_container_width=True, type="primary"):
             agora = int(datetime.now().timestamp() * 1000)
             baixada = 0 if v_mod == "FIADO" else 1
             with get_connection() as conn:
@@ -187,56 +186,52 @@ if st.session_state.pagina == "🛒":
                 if v_mod == "FIADO" and v_cli:
                     conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (v_pre, v_cli))
                 conn.commit()
-            st.success("Vendido!")
+            st.success("OK!")
             st.session_state.desc_venda = ""
             st.session_state.valor_venda = 0.0
             st.rerun()
 
-# --- TELA: CADERNETA ---
 elif st.session_state.pagina == "👥":
     st.write("### 👥 Devedores")
-    with st.expander("➕ Novo"):
+    with st.expander("Novo Cliente"):
         n = st.text_input("Nome").upper()
         if st.button("SALVAR"):
             with get_connection() as conn:
                 conn.execute("INSERT INTO clientes (nome, tipo) VALUES (?, 'ALUNO')", (n,))
-            st.success("OK!"); st.rerun()
+            st.rerun()
     with get_connection() as conn:
         df_cli = pd.read_sql_query("SELECT nome, saldo_devedor FROM clientes WHERE saldo_devedor > 0 ORDER BY nome", conn)
     st.dataframe(df_cli, use_container_width=True, hide_index=True)
 
-# --- TELA: BANDEJA ---
 elif st.session_state.pagina == "🍱":
-    st.write("### 🍱 Bandeja Diária")
-    val_b = st.number_input("Valor R$", value=15.0)
+    st.write("### 🍱 Bandeja")
+    val_b = st.number_input("R$", value=15.0)
     with get_connection() as conn:
         alunos = pd.read_sql_query("SELECT nome FROM clientes WHERE tipo='BANDEJA'", conn)['nome'].tolist()
     sel = []
     for a in alunos:
         if st.checkbox(a, key=f"chk_{a}"): sel.append(a)
-    if st.button("LANÇAR", use_container_width=True, type="primary"):
+    if st.button("LANÇAR TUDO"):
         agora = int(datetime.now().timestamp() * 1000)
         with get_connection() as conn:
             for n in sel:
                 conn.execute("INSERT INTO vendas (data_ms, total, metodo, descricao_resumo, baixada, cliente_nome) VALUES (?,?,?,?,0,?)", (agora, val_b, "FIADO", "BANDEJA", n))
                 conn.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE nome = ?", (val_b, n))
             conn.commit()
-        st.success("Sucesso!"); st.rerun()
+        st.rerun()
 
-# --- TELA: HISTÓRICO ---
 elif st.session_state.pagina == "📜":
-    st.write("### 📜 Últimas Vendas")
+    st.write("### 📜 Recentes")
     with get_connection() as conn:
-        df_h = pd.read_sql_query("SELECT id, total, metodo, cliente_nome FROM vendas ORDER BY id DESC LIMIT 15", conn)
-    st.dataframe(df_h, use_container_width=True, hide_index=True)
+        df_h = pd.read_sql_query("SELECT total, metodo, cliente_nome FROM vendas ORDER BY id DESC LIMIT 10", conn)
+    st.table(df_h)
 
-# --- TELA: RELATÓRIOS ---
 elif st.session_state.pagina == "📊":
-    st.write("### 📊 Resumo")
+    st.write("### 📊 Financeiro")
     with get_connection() as conn:
         v_total = conn.execute("SELECT SUM(total) FROM vendas").fetchone()[0] or 0
         f_total = conn.execute("SELECT SUM(saldo_devedor) FROM clientes").fetchone()[0] or 0
-    st.metric("Vendido", f"R${v_total:.2f}")
+    st.metric("Total", f"R${v_total:.2f}")
     st.metric("Fiado", f"R${f_total:.2f}")
     if st.button("SAIR"):
         st.session_state.autenticado = False
