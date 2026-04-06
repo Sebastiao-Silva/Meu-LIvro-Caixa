@@ -1,0 +1,1263 @@
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1e1b4b">
+    <title>Bear Snack | Gestão Total</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="script.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --accent: #f59e0b; 
+            --success: #10b981; --danger: #ef4444; --text: #f8fafc;
+            --text-dim: #94a3b8; --info: #3b82f6; --wpp: #25d366;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { background: var(--bg); color: var(--text); margin: 0; padding-top: 135px; padding-bottom: 90px; min-height: 100vh; overflow-x: hidden; }
+
+        #tela-login {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 9999; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .login-box {
+            background: var(--card); padding: 30px; border-radius: 20px;
+            border: 1px solid var(--accent); width: 100%; max-width: 350px;
+            text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .login-box img { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--accent); margin-bottom: 15px; }
+        .login-box h2 { color: var(--accent); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+
+        #main-app { display: none; }
+
+        .header-logo { 
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 1001;
+            display: flex; flex-direction: column; align-items: center; 
+            padding: 15px; background: #020617; border-bottom: 1px solid var(--accent); 
+        }
+        .header-logo img { width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent); }
+        .header-logo h1 { margin: 5px 0 0 0; font-size: 1.2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
+        
+        .btn-fullscreen {
+            position: absolute; right: 20px; top: 25px; background: transparent;
+            border: 1px solid var(--accent); color: var(--accent); border-radius: 8px;
+            padding: 8px; cursor: pointer; font-size: 1.2rem;
+        }
+
+        nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 75px; background: #1e293b; border-top: 2px solid var(--accent); display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
+        .nav-link { color: var(--text-dim); text-align: center; font-size: 0.6rem; text-decoration: none; display: flex; flex-direction: column; }
+        .nav-link i { font-size: 1.3rem; margin-bottom: 3px; }
+        .nav-link.active { color: var(--accent); }
+
+        .aba { display: none; padding-bottom: 20px; }
+        .aba.active { display: block; }
+
+        .sticky-top {
+            position: sticky;
+            top: 135px;
+            background: var(--bg);
+            z-index: 900;
+            padding: 10px 0;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .container { background: var(--card); border-radius: 12px; margin: 10px; overflow: hidden; border: 1px solid #334155; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 12px; background: #020617; color: var(--accent); text-transform: uppercase; font-size: 0.7rem; }
+        td { padding: 12px; border-bottom: 1px solid #334155; }
+
+        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-pago { background: var(--success); color: white; }
+        .btn-wpp { background: var(--wpp); color: white; }
+        .btn-sm { padding: 6px 10px; font-size: 0.75rem; border-radius: 6px; display: inline-flex; }
+
+        input, select, textarea { background: #0f172a; color: white; padding: 12px; border-radius: 10px; width: 100%; border: 1px solid #334155; margin: 5px 0; outline: none; }
+        input:focus { border-color: var(--accent); }
+
+        .pdv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 10px; padding: 15px; }
+        .btn-prod { background: var(--card); border-radius: 12px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 1px solid #334155; cursor: pointer; }
+        .btn-prod b { font-size: 1.2rem; color: var(--accent); }
+        .btn-prod span { font-size: 0.7rem; margin-top: 4px; }
+        .btn-prod .badge { position: absolute; top: 5px; right: 5px; font-size: 0.6rem; background: var(--accent); color: #000; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+
+        .carrinho-card { background: #020617; border: 2px solid var(--accent); border-radius: 20px; padding: 15px; margin: 15px; }
+        .item-car { display: flex; justify-content: space-between; border-bottom: 1px solid #1e293b; padding: 8px 0; }
+
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.97); z-index: 2000; padding: 20px; overflow-y: auto; }
+
+        .search-container { padding: 0 10px; }
+
+        .filtros-periodo { display: flex; gap: 5px; padding: 10px; justify-content: center; }
+        .btn-filtro { flex: 1; padding: 8px; font-size: 0.7rem; background: #334155; color: white; border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-filtro.active { background: var(--accent); color: #000; border-color: white; }
+
+        /* Estilos para a aba Gerente */
+        .relatorio-box {
+            background: var(--card);
+            border-radius: 12px;
+            margin: 10px;
+            padding: 15px;
+            border: 1px solid var(--accent);
+        }
+        .relatorio-box h3 {
+            color: var(--accent);
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+        .filtros-data {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .filtros-data input {
+            flex: 1;
+            min-width: 120px;
+        }
+        .btn-relatorio {
+            background: var(--info);
+            color: white;
+            margin-top: 10px;
+        }
+        .relatorio-resultado {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .relatorio-resultado table {
+            font-size: 0.75rem;
+        }
+        .relatorio-resultado th, .relatorio-resultado td {
+            padding: 8px;
+        }
+        .total-relatorio {
+            background: #020617;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            text-align: right;
+            font-weight: bold;
+            color: var(--accent);
+        }
+        .btn-print {
+            background: var(--accent);
+            color: #000;
+            margin-top: 10px;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #modal-extrato, #modal-extrato * { visibility: visible; }
+            #modal-extrato { position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 0; }
+            .btn, .no-print { display: none !important; }
+            .relatorio-resultado, .relatorio-box { visibility: visible; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="tela-login">
+        <div class="login-box">
+            <img src="logo.png" alt="Bear Snack">
+            <h2>Acesso Restrito</h2>
+            <input type="password" id="senha-acesso" placeholder="Senha do Sistema" style="text-align: center; font-size: 1.2rem;">
+            <button class="btn btn-pago" style="width: 100%; margin-top: 15px;" onclick="verificarLogin()">ENTRAR</button>
+            <p id="erro-login" style="color: var(--danger); font-size: 0.8rem; margin-top: 10px; display: none;">Senha incorreta!</p>
+        </div>
+    </div>
+
+    <!-- Tela de Login do Gerente -->
+    <div id="tela-login-gerente" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+        <div class="login-box">
+            <img src="logo.png" alt="Bear Snack">
+            <h2>Acesso Gerente</h2>
+            <input type="password" id="senha-gerente" placeholder="Senha do Gerente" style="text-align: center; font-size: 1.2rem;">
+            <button class="btn btn-pago" style="width: 100%; margin-top: 15px;" onclick="verificarLoginGerente()">ENTRAR</button>
+            <button class="btn" style="width: 100%; margin-top: 10px; background: #334155;" onclick="fecharLoginGerente()">VOLTAR</button>
+            <p id="erro-login-gerente" style="color: var(--danger); font-size: 0.8rem; margin-top: 10px; display: none;">Senha incorreta!</p>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <div class="header-logo">
+            <button class="btn-fullscreen" onclick="toggleFullScreen()" title="Tela Cheia">
+                <i class="fas fa-expand"></i>
+            </button>
+            <img src="logo.png" alt="Bear Snack">
+            <h1>CAIXA BEAR SNACK</h1>
+        </div>
+
+        <nav>
+            <a href="#" class="nav-link active" onclick="ir('vendas', this)"><i class="fas fa-cash-register"></i>Vendas</a>
+            <a href="#" class="nav-link" onclick="ir('bandeja', this)"><i class="fas fa-utensils"></i>Bandeja</a>
+            <a href="#" class="nav-link" onclick="ir('estoque', this)"><i class="fas fa-boxes"></i>Estoque</a>
+            <a href="#" class="nav-link" onclick="ir('clientes', this)"><i class="fas fa-users"></i>Clientes</a>
+            <a href="#" class="nav-link" onclick="ir('historico', this)"><i class="fas fa-list-alt"></i>Histórico</a>
+            <a href="#" class="nav-link" onclick="abrirGerente()"><i class="fas fa-chart-line"></i>Gerente</a>
+        </nav>
+
+        <main>
+            <div id="aba-vendas" class="aba active">
+                <div id="pdv-grid" class="pdv-grid"></div>
+                <div class="carrinho-card">
+                    <h2 id="tot-car" style="color:var(--accent); margin:0; font-size: 2rem;">R$ 0,00</h2>
+                    <div id="lista-car" style="max-height:120px; overflow-y:auto; margin:10px 0; border-top: 1px solid #334155;"></div>
+                    <select id="sel-pessoa"></select>
+                    <select id="sel-pagamento">
+                        <option value="DINHEIRO">💵 DINHEIRO</option>
+                        <option value="PIX">💎 PIX</option>
+                        <option value="DEBITO">💳 DÉBITO</option>
+                        <option value="CREDITO">💳 CRÉDITO</option>
+                        <option value="FIADO">📝 FIADO (CONTA)</option>
+                    </select>
+                    <label style="font-size: 0.7rem; color: var(--accent); margin-left: 5px;">DATA DA VENDA:</label>
+                    <input type="datetime-local" id="venda-data-manual">
+                    <textarea id="obs-venda" placeholder="Obs rápida..." rows="1"></textarea>
+                    <button class="btn btn-pago" style="width:100%; margin-top:10px; height: 50px;" onclick="finalizarVenda()">FINALIZAR VENDA</button>
+                </div>
+            </div>
+
+            <div id="aba-clientes" class="aba">
+                <div class="sticky-top">
+                    <div class="search-container">
+                        <input type="text" id="busca-pessoa" placeholder="🔍 Buscar por nome..." onkeyup="renderizarTudo()">
+                    </div>
+                    <button class="btn btn-pago" style="width:95%; margin:10px auto" onclick="abrirModalPessoa()">+ NOVO CADASTRO</button>
+                </div>
+                <div class="container">
+                    <table>
+                        <thead><tr><th>NOME (VER FICHA)</th><th>SALDO</th><th>AÇÕES</th></tr></thead>
+                        <tbody id="tab-p"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="aba-bandeja" class="aba">
+                <div class="sticky-top">
+                    <div class="filtros-periodo">
+                        <button class="btn-filtro active" onclick="setFiltroBan('TODOS', this)">TODOS</button>
+                        <button class="btn-filtro" onclick="setFiltroBan('MANHÃ', this)">MANHÃ</button>
+                        <button class="btn-filtro" onclick="setFiltroBan('TARDE', this)">TARDE</button>
+                        <button class="btn-filtro" onclick="setFiltroBan('NOITE', this)">NOITE</button>
+                    </div>
+                    <div class="search-container">
+                        <input type="text" id="busca-bandeja" placeholder="🔍 Filtrar alunos..." onkeyup="renderizarTudo()">
+                    </div>
+                    <div style="padding:0 10px">
+                        <input type="text" id="ban-prato" placeholder="Qual o lanche/prato?">
+                        <input type="number" id="ban-val" placeholder="Valor R$" step="0.01">
+                        <button class="btn btn-pago" style="width:100%" onclick="lancarBandeja()">LANÇAR PARA MARCADOS</button>
+                    </div>
+                </div>
+                <div id="lista-alunos-ban" style="padding:10px"></div>
+            </div>
+
+            <div id="aba-estoque" class="aba">
+                <div class="sticky-top">
+                    <button class="btn btn-pago" style="width:95%; margin:10px auto" onclick="abrirModalProd()">+ NOVO PRODUTO</button>
+                </div>
+                <div class="container">
+                    <table>
+                        <thead><tr><th>PRODUTO</th><th>ESTOQUE</th><th>AÇÕES</th></tr></thead>
+                        <tbody id="tab-estoque"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="aba-historico" class="aba">
+                <div class="sticky-top">
+                    <div class="search-container">
+                        <input type="text" id="busca-historico" placeholder="🔍 Buscar no histórico..." onkeyup="renderizarTudo()">
+                    </div>
+                    <div style="padding:10px; display:flex; gap:10px">
+                        <button class="btn" style="flex:1; background:#334155; color:white; font-size:0.7rem" onclick="exportarBackup()">EXPORTAR</button>
+                        <button class="btn" style="flex:1; background:#334155; color:white; font-size:0.7rem" onclick="document.getElementById('input-backup').click()">IMPORTAR</button>
+                        <input type="file" id="input-backup" style="display:none" onchange="importarBackup(event)">
+                    </div>
+                </div>
+                <div class="container">
+                    <table>
+                        <thead><tr><th>DATA/HORA</th><th>TOTAL</th><th>AÇÕES</th></tr></thead>
+                        <tbody id="tab-h"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ABA GERENTE - NOVA -->
+            <div id="aba-gerente" class="aba">
+                <div class="sticky-top">
+                    <div class="search-container">
+                        <h3 style="color: var(--accent); margin: 10px; font-size: 1rem;">📊 RELATÓRIOS GERENCIAIS</h3>
+                    </div>
+                </div>
+
+                <!-- Relatório Individual por Cliente -->
+                <div class="relatorio-box">
+                    <h3><i class="fas fa-user"></i> RELATÓRIO INDIVIDUAL</h3>
+                    <select id="rel-cliente-select" style="margin-bottom: 10px;">
+                        <option value="">Selecione um cliente...</option>
+                    </select>
+                    <button class="btn btn-relatorio" onclick="gerarRelatorioIndividual()" style="width: 100%;">GERAR RELATÓRIO COMPLETO</button>
+                    <div id="relatorio-individual-resultado" class="relatorio-resultado" style="display: none;"></div>
+                </div>
+
+                <!-- Relatório Geral por Período -->
+                <div class="relatorio-box">
+                    <h3><i class="fas fa-calendar-alt"></i> RELATÓRIO GERAL POR PERÍODO</h3>
+                    <div class="filtros-data">
+                        <input type="datetime-local" id="rel-data-inicio" placeholder="Data Início">
+                        <input type="datetime-local" id="rel-data-fim" placeholder="Data Fim">
+                    </div>
+                    <div class="filtros-data">
+                        <select id="rel-tipo-operacao" style="flex: 1;">
+                            <option value="TODOS">TODAS AS OPERAÇÕES</option>
+                            <option value="DINHEIRO">DINHEIRO</option>
+                            <option value="PIX">PIX</option>
+                            <option value="DEBITO">DÉBITO</option>
+                            <option value="CREDITO">CRÉDITO</option>
+                            <option value="FIADO">FIADO</option>
+                            <option value="PAGAMENTO">PAGAMENTO</option>
+                            <option value="BANDEJA">BANDEJA</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-relatorio" onclick="gerarRelatorioGeral()" style="width: 100%;">GERAR RELATÓRIO GERAL</button>
+                    <div id="relatorio-geral-resultado" class="relatorio-resultado" style="display: none;"></div>
+                </div>
+
+                <!-- Resumo Financeiro -->
+                <div class="relatorio-box">
+                    <h3><i class="fas fa-chart-pie"></i> RESUMO FINANCEIRO</h3>
+                    <div id="resumo-financeiro" style="padding: 10px;">
+                        <p>Carregando...</p>
+                    </div>
+                    <button class="btn btn-print" onclick="imprimirRelatorioAtual()" style="width: 100%; margin-top: 10px;">
+                        <i class="fas fa-print"></i> IMPRIMIR RELATÓRIO
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modais existentes (mantidos) -->
+        <div id="modal-historico" class="overlay">
+            <h2>Editar Registro Histórico</h2>
+            <input type="hidden" id="edit-h-id">
+            <label style="font-size: 0.7rem; color: var(--accent);">DESCRIÇÃO / TIPO:</label>
+            <input type="text" id="h-tipo" placeholder="DESCRIÇÃO / TIPO">
+            <label style="font-size: 0.7rem; color: var(--accent);">VALOR TOTAL:</label>
+            <input type="number" id="h-total" placeholder="VALOR TOTAL" step="0.01">
+            <label style="font-size: 0.7rem; color: var(--accent);">DATA/HORA DO REGISTRO:</label>
+            <input type="text" id="h-data-edit" placeholder="Ex: 01/01/2024 10:00:00">
+            <label style="font-size: 0.7rem; color: var(--accent);">OBSERVAÇÕES:</label>
+            <textarea id="h-obs" placeholder="Observações..." rows="3"></textarea>
+            <button class="btn btn-pago" style="width:100%" onclick="salvarHistorico()">SALVAR ALTERAÇÃO</button>
+            <button class="btn" style="width:100%; background:var(--danger); color:white; margin-top:10px" onclick="executarDeletarHistorico()">EXCLUIR REGISTRO</button>
+            <button class="btn" style="width:100%; background:#334155; color:white; margin-top:10px" onclick="fecharModal('modal-historico')">FECHAR</button>
+        </div>
+
+        <div id="modal-pagar" class="overlay">
+            <h2 style="color:var(--accent)">Pagamentos e Créditos</h2>
+            <div id="info-pagar" style="background:var(--card); padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid var(--accent)"></div>
+            
+            <label style="font-size: 0.8rem; color: var(--accent);">Valor da Operação (R$):</label>
+            <input type="number" id="val-pago" placeholder="0.00" step="0.01">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-pago" onclick="processarPagamento('PAGAMENTO')">BAIXAR DÍVIDA</button>
+                <button class="btn" style="background: var(--info); color: white;" onclick="processarPagamento('CREDITO')">ADD CRÉDITO</button>
+            </div>
+
+            <button class="btn btn-wpp" style="margin-top:20px; width:100%" id="btn-cobrar-wpp"><i class="fab fa-whatsapp"></i> ENVIAR COBRANÇA</button>
+            <button class="btn" style="width:100%; background:var(--danger); color:white; margin-top:10px" onclick="fecharModal('modal-pagar')">VOLTAR</button>
+        </div>
+
+        <div id="modal-extrato" class="overlay">
+            <div style="display:flex; justify-content:space-between; align-items:center" class="no-print">
+                <h2 style="color:var(--accent); margin:0">Ficha Individual</h2>
+                <button class="btn btn-sm" style="background:var(--danger); color:white" onclick="fecharModal('modal-extrato')">X</button>
+            </div>
+            <div id="corpo-extrato" style="margin-top:20px; background: white; color: black; padding: 15px; border-radius: 8px;">
+                <div id="extrato-topo" style="border-bottom:1px solid #000; padding-bottom:10px; margin-bottom:10px; text-align: center;"></div>
+                <table style="width:100%; color: black;">
+                    <thead><tr style="border-bottom: 1px solid #000"><th>DATA</th><th>DESCRIÇÃO</th><th>VALOR</th></tr></thead>
+                    <tbody id="extrato-lista"></tbody>
+                </table>
+                <h3 id="extrato-total" style="text-align:right; margin-top:15px; border-top: 1px solid #000; padding-top: 10px;"></h3>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:20px" class="no-print">
+                <button class="btn btn-wpp" onclick="enviarExtratoWpp()"><i class="fab fa-whatsapp"></i> ENVIAR FICHA</button>
+                <button class="btn" style="background:var(--info); color:white" onclick="window.print()"><i class="fas fa-print"></i> IMPRIMIR</button>
+            </div>
+        </div>
+
+        <div id="modal-pessoa" class="overlay">
+            <h2>Cadastro</h2>
+            <input type="hidden" id="edit-p-id">
+            <input type="text" id="p-nome" placeholder="NOME COMPLETO">
+            <input type="text" id="p-doc" placeholder="DOCUMENTO (RG/CPF)">
+            <input type="tel" id="p-tel" placeholder="WHATSAPP (EX: 5513999999999)">
+            <select id="p-periodo"><option value="MANHÃ">MANHÃ</option><option value="TARDE">TARDE</option><option value="NOITE">NOITE</option></select>
+            <select id="p-intervalo"><option value="1º INTERVALO">1º INTERVALO</option><option value="2º INTERVALO">2º INTERVALO</option><option value="3º INTERVALO">3º INTERVALO</option></select>
+            <select id="p-tipo" onchange="toggleBanField()"><option value="CLIENTE">CLIENTE COMUM</option><option value="ALUNO">ALUNO (BANDEJA)</option></select>
+            <div id="p-ban-box" style="display:none"><select id="p-bandeja"><option value="NAO">USA BANDEJA: NÃO</option><option value="SIM">USA BANDEJA: SIM</option></select></div>
+            
+            <button class="btn btn-pago" style="width:100%; margin-top: 15px;" onclick="salvarPessoa()">SALVAR</button>
+            <button id="btn-excluir-pessoa" class="btn" style="width:100%; background:var(--danger); color:white; margin-top:10px; display:none" onclick="executarDeletarPessoa()">EXCLUIR CADASTRO</button>
+            <button class="btn" style="width:100%; background:#334155; color:white; margin-top:10px" onclick="fecharModal('modal-pessoa')">FECHAR</button>
+        </div>
+
+        <div id="modal-prod" class="overlay">
+            <h2>Produto</h2>
+            <input type="hidden" id="edit-prod-id">
+            <input type="text" id="prod-nome" placeholder="NOME">
+            <input type="text" id="prod-sigla" placeholder="SIGLA (MAX 3)" maxlength="3">
+            <input type="number" id="prod-preco" placeholder="PREÇO" step="0.01">
+            <input type="number" id="prod-qtd" placeholder="ESTOQUE">
+            <button class="btn btn-pago" style="width:100%" onclick="salvarProduto()">SALVAR</button>
+            <button class="btn" style="width:100%; background:var(--danger); color:white; margin-top:10px" onclick="deletar('estoque', parseInt(document.getElementById('edit-prod-id').value))">EXCLUIR PRODUTO</button>
+            <button class="btn" style="width:100%; background:#334155; color:white; margin-top:10px" onclick="fecharModal('modal-prod')">CANCELAR</button>
+        </div>
+    </div>
+
+    <script>
+        const SENHA_MESTRA = "1234";
+        const SENHA_GERENTE = "admin123";
+        let filtroBanAtual = 'TODOS';
+        let relatorioAtualHTML = "";
+
+        const somVenda = new Audio('https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3');
+        const somCaixa = new Audio('https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3');
+
+        function parseDataBR(str) {
+            if(!str) return new Date(0);
+            try {
+                const parts = str.split(' ');
+                const dateParts = parts[0].split('/');
+                const timeParts = parts[1] ? parts[1].split(':') : ["00", "00", "00"];
+                return new Date(dateParts[2], dateParts[1] - 1, dateParts[0], timeParts[0], timeParts[1], timeParts[2] || 0);
+            } catch(e) { return new Date(0); }
+        }
+
+        function formatarDataHoraParaInput(dataStr) {
+            if(!dataStr) return "";
+            try {
+                const d = parseDataBR(dataStr);
+                if(d.toString() === "Invalid Date") return "";
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                return d.toISOString().slice(0, 16);
+            } catch(e) { return ""; }
+        }
+
+        function atualizarDataAtualPDV() {
+            const agora = new Date();
+            agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
+            document.getElementById('venda-data-manual').value = agora.toISOString().slice(0, 16);
+        }
+
+        function verificarLogin() {
+            const senhaDigitada = document.getElementById('senha-acesso').value;
+            if(senhaDigitada === SENHA_MESTRA) {
+                document.getElementById('tela-login').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                sessionStorage.setItem('autenticado', 'true');
+                atualizarDataAtualPDV();
+                renderizarTudo();
+            } else {
+                document.getElementById('erro-login').style.display = 'block';
+                document.getElementById('senha-acesso').value = "";
+            }
+        }
+
+        // Funções da aba Gerente
+        function abrirGerente() {
+            document.getElementById('tela-login-gerente').style.display = 'flex';
+        }
+
+        function fecharLoginGerente() {
+            document.getElementById('tela-login-gerente').style.display = 'none';
+        }
+
+        function verificarLoginGerente() {
+            const senhaDigitada = document.getElementById('senha-gerente').value;
+            if(senhaDigitada === SENHA_GERENTE) {
+                document.getElementById('tela-login-gerente').style.display = 'none';
+                // Ativar a aba gerente
+                document.querySelectorAll('.aba').forEach(a => a.classList.remove('active'));
+                document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+                document.getElementById('aba-gerente').classList.add('active');
+                // Encontrar o link do gerente e marcar como ativo
+                const links = document.querySelectorAll('.nav-link');
+                for(let link of links) {
+                    if(link.querySelector('i').classList.contains('fa-chart-line')) {
+                        link.classList.add('active');
+                        break;
+                    }
+                }
+                carregarClientesNoSelect();
+                carregarResumoFinanceiro();
+                window.scrollTo(0, 0);
+            } else {
+                document.getElementById('erro-login-gerente').style.display = 'block';
+                document.getElementById('senha-gerente').value = "";
+            }
+        }
+
+        async function carregarClientesNoSelect() {
+            const pessa = await listar("pessoas");
+            const select = document.getElementById('rel-cliente-select');
+            select.innerHTML = '<option value="">Selecione um cliente...</option>';
+            pessa.sort((a, b) => a.nome.localeCompare(b.nome));
+            for(let p of pessa) {
+                select.innerHTML += `<option value="${p.id}">${p.nome} (${p.tipo || 'CLIENTE'}) - Saldo: R$ ${(-p.divida).toFixed(2)}</option>`;
+            }
+        }
+
+        async function gerarRelatorioIndividual() {
+            const clienteId = parseInt(document.getElementById('rel-cliente-select').value);
+            if(!clienteId) {
+                alert("Selecione um cliente!");
+                return;
+            }
+            
+            const p = await buscar("pessoas", clienteId);
+            const hists = await listar("historico");
+            const consumos = hists.filter(h => h.clienteId === clienteId);
+            
+            // Ordenar por data da mais recente para a mais antiga
+            consumos.sort((a, b) => parseDataBR(b.data) - parseDataBR(a.data));
+            
+            let html = `
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <h3 style="color: var(--accent); margin: 0;">BEAR SNACK</h3>
+                    <h4>RELATÓRIO COMPLETO - ${p.nome}</h4>
+                    <p><strong>Telefone:</strong> ${p.tel || 'Não informado'} | <strong>Período:</strong> ${p.periodo || 'N/A'}</p>
+                    <p><strong>Documento:</strong> ${p.doc || 'Não informado'} | <strong>Tipo:</strong> ${p.tipo || 'CLIENTE'}</p>
+                    <hr>
+                </div>
+                <table style="width: 100%; font-size: 0.7rem;">
+                    <thead>
+                        <tr style="background: #1e293b;">
+                            <th>DATA/HORA</th>
+                            <th>TIPO DE OPERAÇÃO</th>
+                            <th>DESCRIÇÃO DETALHADA</th>
+                            <th>VALOR (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            let totalGeral = 0;
+            for(let c of consumos) {
+                let tipoOp = c.tipo.split(':')[0];
+                let descricao = c.tipo;
+                let valor = c.total;
+                
+                if(tipoOp === 'PAGAMENTO') {
+                    totalGeral -= valor;
+                    html += `<tr style="color: #10b981;">`;
+                } else if(tipoOp === 'CREDITO') {
+                    totalGeral -= valor;
+                    html += `<tr style="color: #3b82f6;">`;
+                } else {
+                    totalGeral += valor;
+                    html += `<tr>`;
+                }
+                
+                html += `
+                    <td><small>${c.data}</small></td>
+                    <td><strong>${tipoOp}</strong></td>
+                    <td><small>${descricao}</small></td>
+                    <td align="right"><strong>R$ ${valor.toFixed(2)}</strong></td>
+                </tr>`;
+            }
+            
+            html += `
+                    </tbody>
+                </table>
+                <div class="total-relatorio">
+                    <strong>SALDO TOTAL DO CLIENTE: R$ ${totalGeral.toFixed(2)}</strong>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.7rem; text-align: center; color: #666;">
+                    Relatório gerado em ${new Date().toLocaleString('pt-BR')}
+                </div>
+            `;
+            
+            const resultadoDiv = document.getElementById('relatorio-individual-resultado');
+            resultadoDiv.innerHTML = html;
+            resultadoDiv.style.display = 'block';
+            relatorioAtualHTML = html;
+        }
+
+        async function gerarRelatorioGeral() {
+            let dataInicio = document.getElementById('rel-data-inicio').value;
+            let dataFim = document.getElementById('rel-data-fim').value;
+            const tipoOp = document.getElementById('rel-tipo-operacao').value;
+            
+            let hists = await listar("historico");
+            
+            // Filtrar por período
+            if(dataInicio || dataFim) {
+                hists = hists.filter(h => {
+                    const dataH = parseDataBR(h.data);
+                    if(dataInicio && parseDataBR(dataInicio.replace('T', ' ')) > dataH) return false;
+                    if(dataFim) {
+                        const dataFimObj = parseDataBR(dataFim.replace('T', ' '));
+                        dataFimObj.setHours(23, 59, 59);
+                        if(dataFimObj < dataH) return false;
+                    }
+                    return true;
+                });
+            }
+            
+            // Filtrar por tipo de operação
+            if(tipoOp !== 'TODOS') {
+                hists = hists.filter(h => h.tipo.startsWith(tipoOp));
+            }
+            
+            // Ordenar por data da mais recente para a mais antiga
+            hists.sort((a, b) => parseDataBR(b.data) - parseDataBR(a.data));
+            
+            let html = `
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <h3 style="color: var(--accent); margin: 0;">BEAR SNACK</h3>
+                    <h4>RELATÓRIO GERAL</h4>
+                    <p><strong>Período:</strong> ${dataInicio ? new Date(dataInicio).toLocaleString('pt-BR') : 'INÍCIO'} até ${dataFim ? new Date(dataFim).toLocaleString('pt-BR') : 'FIM'}</p>
+                    <p><strong>Tipo de Operação:</strong> ${tipoOp}</p>
+                    <hr>
+                </div>
+                <table style="width: 100%; font-size: 0.7rem;">
+                    <thead>
+                        <tr style="background: #1e293b;">
+                            <th>DATA/HORA</th>
+                            <th>CLIENTE</th>
+                            <th>TIPO DE OPERAÇÃO</th>
+                            <th>DESCRIÇÃO</th>
+                            <th>VALOR (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            let totalEntradas = 0;
+            let totalSaidas = 0;
+            
+            for(let h of hists) {
+                let tipoOpItem = h.tipo.split(':')[0];
+                let cliente = "AVULSO";
+                if(h.clienteId) {
+                    const p = await buscar("pessoas", h.clienteId);
+                    if(p) cliente = p.nome;
+                }
+                
+                if(tipoOpItem === 'PAGAMENTO' || tipoOpItem === 'CREDITO') {
+                    totalSaidas += h.total;
+                    html += `<tr style="color: #10b981;">`;
+                } else {
+                    totalEntradas += h.total;
+                    html += `<tr>`;
+                }
+                
+                html += `
+                    <td><small>${h.data}</small></td>
+                    <td><strong>${cliente}</strong></td>
+                    <td>${tipoOpItem}</td>
+                    <td><small>${h.tipo}</small></td>
+                    <td align="right"><strong>R$ ${h.total.toFixed(2)}</strong></td>
+                </tr>`;
+            }
+            
+            html += `
+                    </tbody>
+                </table>
+                <div class="total-relatorio">
+                    <div><strong>TOTAL DE VENDAS (Entradas): R$ ${totalEntradas.toFixed(2)}</strong></div>
+                    <div><strong>TOTAL DE PAGAMENTOS (Saídas): R$ ${totalSaidas.toFixed(2)}</strong></div>
+                    <div><strong>SALDO LÍQUIDO: R$ ${(totalEntradas - totalSaidas).toFixed(2)}</strong></div>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.7rem; text-align: center; color: #666;">
+                    Total de registros: ${hists.length} | Relatório gerado em ${new Date().toLocaleString('pt-BR')}
+                </div>
+            `;
+            
+            const resultadoDiv = document.getElementById('relatorio-geral-resultado');
+            resultadoDiv.innerHTML = html;
+            resultadoDiv.style.display = 'block';
+            relatorioAtualHTML = html;
+        }
+
+        async function carregarResumoFinanceiro() {
+            const hists = await listar("historico");
+            const pessoas = await listar("pessoas");
+            
+            let totalVendas = 0;
+            let totalPagamentos = 0;
+            let totalFiado = 0;
+            let totalPix = 0;
+            let totalDinheiro = 0;
+            let totalDebito = 0;
+            let totalCredito = 0;
+            let totalBandeja = 0;
+            
+            for(let h of hists) {
+                let tipo = h.tipo.split(':')[0];
+                if(tipo === 'PAGAMENTO' || tipo === 'CREDITO') {
+                    totalPagamentos += h.total;
+                } else {
+                    totalVendas += h.total;
+                }
+                
+                if(tipo === 'FIADO') totalFiado += h.total;
+                if(tipo === 'PIX') totalPix += h.total;
+                if(tipo === 'DINHEIRO') totalDinheiro += h.total;
+                if(tipo === 'DEBITO') totalDebito += h.total;
+                if(tipo === 'CREDITO' && !h.tipo.includes('PAGAMENTO')) totalCredito += h.total;
+                if(tipo === 'BANDEJA') totalBandeja += h.total;
+            }
+            
+            let totalDividasClientes = 0;
+            for(let p of pessoas) {
+                if(p.divida > 0) totalDividasClientes += p.divida;
+            }
+            
+            const html = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="background: #020617; padding: 10px; border-radius: 8px;">
+                        <small>TOTAL VENDAS</small>
+                        <h3 style="color: var(--success); margin: 5px 0;">R$ ${totalVendas.toFixed(2)}</h3>
+                    </div>
+                    <div style="background: #020617; padding: 10px; border-radius: 8px;">
+                        <small>TOTAL PAGAMENTOS</small>
+                        <h3 style="color: var(--info); margin: 5px 0;">R$ ${totalPagamentos.toFixed(2)}</h3>
+                    </div>
+                    <div style="background: #020617; padding: 10px; border-radius: 8px;">
+                        <small>SALDO LÍQUIDO</small>
+                        <h3 style="color: var(--accent); margin: 5px 0;">R$ ${(totalVendas - totalPagamentos).toFixed(2)}</h3>
+                    </div>
+                    <div style="background: #020617; padding: 10px; border-radius: 8px;">
+                        <small>TOTAL DÍVIDAS CLIENTES</small>
+                        <h3 style="color: var(--danger); margin: 5px 0;">R$ ${totalDividasClientes.toFixed(2)}</h3>
+                    </div>
+                </div>
+                <hr style="border-color: #334155; margin: 15px 0;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.75rem;">
+                    <div>💵 DINHEIRO: <strong>R$ ${totalDinheiro.toFixed(2)}</strong></div>
+                    <div>💎 PIX: <strong>R$ ${totalPix.toFixed(2)}</strong></div>
+                    <div>💳 DÉBITO: <strong>R$ ${totalDebito.toFixed(2)}</strong></div>
+                    <div>💳 CRÉDITO: <strong>R$ ${totalCredito.toFixed(2)}</strong></div>
+                    <div>📝 FIADO: <strong>R$ ${totalFiado.toFixed(2)}</strong></div>
+                    <div>🍽️ BANDEJA: <strong>R$ ${totalBandeja.toFixed(2)}</strong></div>
+                </div>
+            `;
+            
+            document.getElementById('resumo-financeiro').innerHTML = html;
+        }
+
+        function imprimirRelatorioAtual() {
+            if(!relatorioAtualHTML) {
+                alert("Nenhum relatório gerado para imprimir!");
+                return;
+            }
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Bear Snack - Relatório</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background: #f5f5f5; }
+                        .total-relatorio { margin-top: 20px; padding: 10px; background: #f0f0f0; text-align: right; font-weight: bold; }
+                        @media print {
+                            body { margin: 0; }
+                            button { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${relatorioAtualHTML}
+                    <button onclick="window.print()" style="margin-top: 20px; padding: 10px;">IMPRIMIR</button>
+                    <button onclick="window.close()" style="margin-top: 20px; padding: 10px;">FECHAR</button>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        if(sessionStorage.getItem('autenticado') === 'true') {
+            document.getElementById('tela-login').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            window.onload = () => { atualizarDataAtualPDV(); renderizarTudo(); };
+        }
+
+        let db;
+        const req = indexedDB.open("BearSnackFinalDB", 2);
+
+        req.onupgradeneeded = (e) => {
+            db = e.target.result;
+            const oldVersion = e.oldVersion;
+            
+            if (!db.objectStoreNames.contains("estoque")) {
+                db.createObjectStore("estoque", { keyPath: "id", autoIncrement: true });
+            }
+            if (!db.objectStoreNames.contains("pessoas")) {
+                db.createObjectStore("pessoas", { keyPath: "id", autoIncrement: true });
+            }
+            if (!db.objectStoreNames.contains("historico")) {
+                db.createObjectStore("historico", { keyPath: "id", autoIncrement: true });
+            }
+        };
+
+        req.onsuccess = (e) => { 
+            db = e.target.result; 
+            if(sessionStorage.getItem('autenticado') === 'true') {
+                renderizarTudo();
+                carregarResumoFinanceiro();
+            }
+        };
+        req.onerror = (e) => console.error("Erro no IndexedDB:", e);
+
+        let carrinho = [];
+        let clienteFichaId = null;
+
+        function ir(aba, el) {
+            document.querySelectorAll('.aba').forEach(a => a.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+            document.getElementById('aba-'+aba).classList.add('active');
+            el.classList.add('active');
+            window.scrollTo(0, 0);
+            
+            if(aba === 'vendas') {
+                somCaixa.currentTime = 0;
+                somCaixa.play().catch(e => console.log("Interação necessária para som"));
+                atualizarDataAtualPDV();
+            }
+            
+            renderizarTudo();
+        }
+
+        function setFiltroBan(periodo, el) {
+            filtroBanAtual = periodo;
+            document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            renderizarTudo();
+        }
+
+        async function renderizarTudo() {
+            if(!db) return;
+            let prods = await listar("estoque");
+            let pessa = await listar("pessoas");
+            const hists = await listar("historico");
+
+            prods.sort((a, b) => a.nome.localeCompare(b.nome));
+            pessa.sort((a, b) => a.nome.localeCompare(b.nome));
+
+            const termoPessoa = document.getElementById('busca-pessoa').value.toUpperCase();
+            const pessoasFiltradas = pessa.filter(p => p.nome.includes(termoPessoa));
+
+            const termoBandeja = document.getElementById('busca-bandeja').value.toUpperCase();
+            const bandejaFiltrada = pessa.filter(p => {
+                const matchesSearch = p.tipo === 'ALUNO' && p.bandeja === 'SIM' && p.nome.includes(termoBandeja);
+                const matchesPeriodo = filtroBanAtual === 'TODOS' || p.periodo === filtroBanAtual;
+                return matchesSearch && matchesPeriodo;
+            });
+
+            const termoHist = document.getElementById('busca-historico') ? document.getElementById('busca-historico').value.toUpperCase() : "";
+            const histsFiltrados = hists.filter(h => {
+                return h.tipo.toUpperCase().includes(termoHist) || (h.obs && h.obs.toUpperCase().includes(termoHist)) || h.data.includes(termoHist);
+            });
+            
+            histsFiltrados.sort((a, b) => {
+                const dataA = parseDataBR(a.data);
+                const dataB = parseDataBR(b.data);
+                return dataB - dataA;
+            });
+
+            document.getElementById('pdv-grid').innerHTML = prods.filter(p => p.qtd > 0).map(p => `
+                <div class="btn-prod" onclick="addCar(${p.id}, '${p.sigla}', ${p.preco})">
+                    <div class="badge">${p.qtd}</div>
+                    <b>${p.sigla}</b>
+                    <span>R$ ${p.preco.toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('tab-p').innerHTML = pessoasFiltradas.map(p => `
+                <tr>
+                    <td onclick="abrirExtrato(${p.id})"><b>${p.nome}</b><br><small>${p.periodo} | ${p.tel || ''}</small></td>
+                    <td style="color:${p.divida > 0 ? 'var(--danger)' : 'var(--success)'}; font-weight:bold">R$ ${(-p.divida).toFixed(2)}</td>
+                    <td style="display:flex; gap:5px">
+                        <button class="btn btn-sm btn-pago" onclick="abrirCobranca(${p.id})">$</button>
+                        <button class="btn btn-sm" style="background:var(--info); color:white" onclick="abrirModalPessoa(${p.id})">✎</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('tab-estoque').innerHTML = prods.map(p => `
+                <tr>
+                    <td><b>${p.sigla}</b><br><small>${p.nome}</small></td>
+                    <td>${p.qtd}</td>
+                    <td>
+                        <button class="btn btn-sm btn-pago" onclick="abrirModalProd(${p.id})">✎</button>
+                        <button class="btn btn-sm" style="background:var(--danger); color:white" onclick="deletar('estoque', ${p.id})">X</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('tab-h').innerHTML = histsFiltrados.map(h => `
+                <tr>
+                    <td><small>${h.data}</small><br>${h.tipo}</td>
+                    <td>R$ ${h.total.toFixed(2)}</td>
+                    <td style="display:flex; gap:5px">
+                        <button class="btn btn-sm" style="background:var(--info); color:white" onclick="abrirEditarHistorico(${h.id})">✎</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('lista-alunos-ban').innerHTML = bandejaFiltrada.map(a => `
+                <div style="background:var(--card); padding:12px; margin:5px; border-radius:10px; display:flex; justify-content:space-between; border:1px solid #334155">
+                    <span>${a.nome} (${a.periodo})</span>
+                    <input type="checkbox" class="chk-ban" style="width:25px; height:25px" data-id="${a.id}">
+                </div>
+            `).join('');
+
+            document.getElementById('sel-pessoa').innerHTML = '<option value="0">👤 CLIENTE AVULSO</option>' + 
+                pessa.filter(p => p.tipo !== 'ALUNO').map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Erro ao tentar ativar tela cheia: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        function addCar(id, sigla, preco) { carrinho.push({id, sigla, preco}); attResumo(); }
+        
+        function attResumo() {
+            let t = 0; 
+            document.getElementById('lista-car').innerHTML = carrinho.map((c,i)=>{t+=c.preco; return `<div class="item-car"><span>${c.sigla}</span><b>R$ ${c.preco.toFixed(2)} <i class="fas fa-times" onclick="carrinho.splice(${i},1);attResumo()" style="color:red; margin-left:10px"></i></b></div>`}).join('');
+            document.getElementById('tot-car').innerText = `R$ ${t.toFixed(2)}`;
+        }
+
+        async function finalizarVenda() {
+            if(!carrinho.length) return;
+            const t = carrinho.reduce((a,b)=>a+b.preco,0);
+            const pag = document.getElementById('sel-pagamento').value;
+            const pid = parseInt(document.getElementById('sel-pessoa').value);
+            
+            const inputData = document.getElementById('venda-data-manual').value;
+            let dataFinal;
+            if(inputData) {
+                const d = new Date(inputData);
+                dataFinal = d.toLocaleString('pt-BR');
+            } else {
+                dataFinal = new Date().toLocaleString('pt-BR');
+            }
+
+            const p = pid !== 0 ? await buscar("pessoas", pid) : {nome: "AVULSO", divida: 0};
+            if(pag === 'FIADO' && pid === 0) return alert("Selecione um cliente para fiado!");
+            for(let it of carrinho) {
+                const prod = await buscar("estoque", it.id);
+                if(prod) { prod.qtd--; await salvar("estoque", prod); }
+            }
+            if(pag === 'FIADO') { p.divida += t; await salvar("pessoas", p); }
+            await salvar("historico", {
+                data: dataFinal,
+                total: t,
+                tipo: `${pag}: ${p.nome} (${carrinho.map(c=>c.sigla).join(',')})`,
+                clienteId: pid,
+                obs: document.getElementById('obs-venda').value
+            });
+            
+            somVenda.currentTime = 0;
+            somVenda.play().catch(e => console.log("Erro som"));
+            
+            carrinho = []; 
+            document.getElementById('obs-venda').value=""; 
+            atualizarDataAtualPDV();
+            renderizarTudo(); 
+            alert("Venda Finalizada!");
+        }
+
+        async function abrirEditarHistorico(id) {
+            const h = await buscar("historico", id);
+            document.getElementById('edit-h-id').value = h.id;
+            document.getElementById('h-tipo').value = h.tipo;
+            document.getElementById('h-total').value = h.total;
+            document.getElementById('h-data-edit').value = h.data;
+            document.getElementById('h-obs').value = h.obs || "";
+            document.getElementById('modal-historico').style.display = 'block';
+        }
+
+        async function salvarHistorico() {
+            const id = parseInt(document.getElementById('edit-h-id').value);
+            const novoTotal = parseFloat(document.getElementById('h-total').value);
+            const novaData = document.getElementById('h-data-edit').value;
+            const h = await buscar("historico", id);
+            
+            if(h.clienteId && (h.tipo.includes("FIADO") || h.tipo.includes("BANDEJA"))) {
+                const p = await buscar("pessoas", h.clienteId);
+                if(p) {
+                    const diferenca = novoTotal - h.total;
+                    p.divida += diferenca;
+                    await salvar("pessoas", p);
+                }
+            } else if (h.clienteId && (h.tipo.includes("PAGAMENTO") || h.tipo.includes("CREDITO"))) {
+                const p = await buscar("pessoas", h.clienteId);
+                if(p) {
+                    const diferenca = novoTotal - h.total;
+                    p.divida -= diferenca;
+                    await salvar("pessoas", p);
+                }
+            }
+
+            h.tipo = document.getElementById('h-tipo').value;
+            h.total = novoTotal;
+            h.data = novaData;
+            h.obs = document.getElementById('h-obs').value;
+            await salvar("historico", h);
+            fecharModal('modal-historico'); renderizarTudo();
+        }
+
+        async function executarDeletarHistorico() {
+            const id = parseInt(document.getElementById('edit-h-id').value);
+            if(!id) return;
+            
+            if(confirm("Deseja realmente excluir este registro? Isso pode afetar a dívida do cliente.")) {
+                const h = await buscar("historico", id);
+                
+                if(h.clienteId) {
+                    const p = await buscar("pessoas", h.clienteId);
+                    if(p) {
+                        if(h.tipo.includes("FIADO") || h.tipo.includes("BANDEJA")) {
+                            p.divida -= h.total;
+                        } else if (h.tipo.includes("PAGAMENTO") || h.tipo.includes("CREDITO")) {
+                            p.divida += h.total;
+                        }
+                        await salvar("pessoas", p);
+                    }
+                }
+                
+                await deletar('historico', id);
+                fecharModal('modal-historico');
+                renderizarTudo();
+            }
+        }
+
+        async function abrirCobranca(id) {
+            clienteFichaId = id;
+            const p = await buscar("pessoas", id);
+            const saldoReal = -p.divida;
+            const statusDivida = saldoReal < 0 ? "Em Débito" : "Crédito";
+            const corDivida = saldoReal < 0 ? "var(--danger)" : "var(--success)";
+            
+            document.getElementById('info-pagar').innerHTML = `
+                <b>Cliente:</b> ${p.nome}<br>
+                <b>Status:</b> <span style="color:${corDivida}">${statusDivida} de R$ ${Math.abs(saldoReal).toFixed(2)}</span>
+            `;
+            document.getElementById('val-pago').value = p.divida > 0 ? p.divida : "";
+            document.getElementById('btn-cobrar-wpp').onclick = () => {
+                const textoCobranca = saldoReal < 0 ? `está em débito de R$ ${Math.abs(saldoReal).toFixed(2)}` : `está com saldo positivo de R$ ${Math.abs(saldoReal).toFixed(2)}`;
+                const msg = `Olá ${p.nome}, sua conta no Bear Snack ${textoCobranca}. Poderia verificar?`;
+                window.open(`https://wa.me/${p.tel}?text=${encodeURIComponent(msg)}`, '_blank');
+            };
+            document.getElementById('modal-pagar').style.display = 'block';
+        }
+
+        async function processarPagamento(tipo) {
+            const v = parseFloat(document.getElementById('val-pago').value);
+            if(isNaN(v) || v <= 0) return alert("Insira um valor válido!");
+            
+            const p = await buscar("pessoas", clienteFichaId);
+            p.divida -= v; 
+            
+            await salvar("pessoas", p);
+            await salvar("historico", { 
+                data: new Date().toLocaleString('pt-BR'), 
+                total: v, 
+                tipo: `${tipo}: ${p.nome}`, 
+                clienteId: p.id, 
+                obs: tipo === 'CREDITO' ? "Adição de crédito antecipado" : "Recebimento de conta" 
+            });
+            
+            somVenda.currentTime = 0;
+            somVenda.play().catch(e => console.log("Erro som"));
+            
+            fecharModal('modal-pagar'); 
+            renderizarTudo();
+            alert(tipo === 'CREDITO' ? "Crédito adicionado!" : "Pagamento registrado!");
+        }
+
+        async function abrirExtrato(id) {
+            clienteFichaId = id;
+            const p = await buscar("pessoas", id);
+            const hists = await listar("historico");
+            const consumos = hists.filter(h => h.clienteId === id).sort((a, b) => parseDataBR(a.data) - parseDataBR(b.data));
+            const saldoReal = -p.divida;
+            const statusLabel = saldoReal < 0 ? "DÉBITO TOTAL" : "CRÉDITO TOTAL";
+            
+            document.getElementById('extrato-topo').innerHTML = `<h2>BEAR SNACK</h2><b>FICHA DE: ${p.nome}</b><br>Saldo: R$ ${saldoReal.toFixed(2)}`;
+            document.getElementById('extrato-lista').innerHTML = consumos.map(c => `<tr><td>${c.data.split(' ')[0]}</td><td>${c.tipo.split(':')[0]}</td><td align="right">R$ ${c.total.toFixed(2)}</td></tr>`).join('');
+            document.getElementById('extrato-total').innerText = `${statusLabel}: R$ ${Math.abs(saldoReal).toFixed(2)}`;
+            document.getElementById('modal-extrato').style.display = 'block';
+        }
+
+        async function enviarExtratoWpp() {
+            const p = await buscar("pessoas", clienteFichaId);
+            const hists = await listar("historico");
+            const consumos = hists.filter(h => h.clienteId === p.id).sort((a, b) => parseDataBR(a.data) - parseDataBR(b.data));
+            const saldoReal = -p.divida;
+            const statusMsg = saldoReal < 0 ? "*DÉBITO ATUAL*" : "*CRÉDITO DISPONÍVEL*";
+            
+            let msg = `*BEAR SNACK - EXTRATO DE CONSUMO*\n*Cliente:* ${p.nome}\n\n`;
+            consumos.forEach(c => { msg += `• ${c.data.split(' ')[0]} - ${c.tipo.split(':')[0]}: R$ ${c.total.toFixed(2)}\n`; });
+            msg += `\n${statusMsg}: R$ ${Math.abs(saldoReal).toFixed(2)}`;
+            window.open(`https://wa.me/${p.tel}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        async function lancarBandeja() {
+            const prato = document.getElementById('ban-prato').value;
+            const valor = parseFloat(document.getElementById('ban-val').value);
+            const selec = document.querySelectorAll('.chk-ban:checked');
+            if(!prato || isNaN(valor) || selec.length === 0) return alert("Preencha prato, valor e marque os alunos!");
+            for(let c of selec) {
+                const p = await buscar("pessoas", parseInt(c.dataset.id));
+                p.divida += valor; await salvar("pessoas", p);
+                await salvar("historico", { data: new Date().toLocaleString('pt-BR'), total: valor, tipo: `BANDEJA: ${p.nome} (${prato})`, clienteId: p.id });
+            }
+            somVenda.currentTime = 0;
+            somVenda.play().catch(e => console.log("Erro som"));
+            alert("Lançado!"); renderizarTudo();
+        }
+
+        async function salvarPessoa() {
+            const id = document.getElementById('edit-p-id').value;
+            const p = {
+                nome: document.getElementById('p-nome').value.toUpperCase(),
+                tel: document.getElementById('p-tel').value,
+                doc: document.getElementById('p-doc').value,
+                periodo: document.getElementById('p-periodo').value,
+                intervalo: document.getElementById('p-intervalo').value,
+                tipo: document.getElementById('p-tipo').value,
+                bandeja: document.getElementById('p-bandeja').value,
+                divida: id ? (await buscar("pessoas", parseInt(id))).divida : 0
+            };
+            if(id) p.id = parseInt(id);
+            await salvar("pessoas", p); fecharModal('modal-pessoa'); renderizarTudo();
+        }
+
+        async function salvarProduto() {
+            const id = document.getElementById('edit-prod-id').value;
+            const pr = {
+                nome: document.getElementById('prod-nome').value.toUpperCase(),
+                sigla: document.getElementById('prod-sigla').value.toUpperCase(),
+                preco: parseFloat(document.getElementById('prod-preco').value),
+                qtd: parseInt(document.getElementById('prod-qtd').value)
+            };
+            if(id) pr.id = parseInt(id);
+            await salvar("estoque", pr); fecharModal('modal-prod'); renderizarTudo();
+        }
+
+        async function exportarBackup() {
+            const d = { estoque: await listar("estoque"), pessoas: await listar("pessoas"), historico: await listar("historico") };
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(d)], {type:"application/json"}));
+            a.download = `backup_bear.json`; a.click();
+        }
+
+        function importarBackup(ev) {
+            const r = new FileReader();
+            r.onload = async (e) => {
+                const d = JSON.parse(e.target.result);
+                if(confirm("Substituir tudo?")) {
+                    await limpar("estoque"); await limpar("pessoas"); await limpar("historico");
+                    for(let i of d.estoque) { delete i.id; await salvar("estoque", i); }
+                    for(let i of d.pessoas) { delete i.id; await salvar("pessoas", i); }
+                    for(let i of d.historico) { delete i.id; await salvar("historico", i); }
+                    location.reload();
+                }
+            };
+            r.readAsText(ev.target.files[0]);
+        }
+
+        function abrirModalPessoa(id = null) { 
+            document.getElementById('modal-pessoa').style.display='block';
+            const btnExcluir = document.getElementById('btn-excluir-pessoa');
+
+            if(id) {
+                buscar("pessoas", id).then(p => { 
+                    document.getElementById('edit-p-id').value = p.id; 
+                    document.getElementById('p-nome').value = p.nome;
+                    document.getElementById('p-tel').value = p.tel;
+                    document.getElementById('p-doc').value = p.doc;
+                    document.getElementById('p-periodo').value = p.periodo;
+                    document.getElementById('p-intervalo').value = p.intervalo;
+                    document.getElementById('p-tipo').value = p.tipo;
+                    toggleBanField();
+                    document.getElementById('p-bandeja').value = p.bandeja;
+                    btnExcluir.style.display = 'block';
+                });
+            } else { 
+                document.getElementById('edit-p-id').value=""; 
+                document.getElementById('modal-pessoa').querySelectorAll('input, select').forEach(i=>i.value=""); 
+                btnExcluir.style.display = 'none';
+            }
+        }
+
+        async function executarDeletarPessoa() {
+            const id = parseInt(document.getElementById('edit-p-id').value);
+            if(id) {
+                await deletar('pessoas', id);
+                fecharModal('modal-pessoa');
+                renderizarTudo();
+            }
+        }
+
+        function abrirModalProd(id = null) {
+            document.getElementById('modal-prod').style.display='block';
+            if(id) {
+                buscar("estoque", id).then(p => {
+                    document.getElementById('edit-prod-id').value = p.id;
+                    document.getElementById('prod-nome').value = p.nome;
+                    document.getElementById('prod-sigla').value = p.sigla;
+                    document.getElementById('prod-preco').value = p.preco;
+                    document.getElementById('prod-qtd').value = p.qtd;
+                });
+            } else { 
+                document.getElementById('edit-prod-id').value=""; 
+                document.getElementById('modal-prod').querySelectorAll('input').forEach(i=>i.value=""); 
+            }
+        }
+
+        function fecharModal(m) { document.getElementById(m).style.display = 'none'; }
+        function listar(t) { return new Promise((resolve, reject) => { const tx = db.transaction(t,"readonly"); tx.objectStore(t).getAll().onsuccess=e=>resolve(e.target.result); tx.onerror=e=>reject(e); }); }
+        function buscar(t, id) { return new Promise((resolve, reject) => { const tx = db.transaction(t,"readonly"); tx.objectStore(t).get(id).onsuccess=e=>resolve(e.target.result); tx.onerror=e=>reject(e); }); }
+        function salvar(t, o) { return new Promise((resolve, reject) => { const tx = db.transaction(t,"readwrite"); tx.objectStore(t).put(o).onsuccess=()=>resolve(); tx.onerror=e=>reject(e); }); }
+        function limpar(t) { return new Promise((resolve, reject) => { const tx = db.transaction(t,"readwrite"); tx.objectStore(t).clear().onsuccess=()=>resolve(); tx.onerror=e=>reject(e); }); }
+        
+        async function deletar(t, id) { 
+            const tx = db.transaction(t,"readwrite");
+            tx.objectStore(t).delete(id);
+            tx.oncomplete = () => renderizarTudo();
+        }
+        function toggleBanField() { document.getElementById('p-ban-box').style.display = document.getElementById('p-tipo').value === 'ALUNO' ? 'block' : 'none'; }
+    </script>
+</body>
+</html>
